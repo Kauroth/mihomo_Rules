@@ -22,7 +22,7 @@
 +.download.windowsupdate.com
 +.dl.delivery.mp.microsoft.com
 +.officecdn.microsoft.com
-+cn.bing.com
+cn.bing.com
 
 # ---------- 驱动 / 开发工具 ----------
 +.drivers.amd.com

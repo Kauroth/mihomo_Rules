@@ -85,7 +85,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Mihomo "D:\Applicati
 
 客户端永远指向 `dist` 分支，`main` 上怎么改都不影响使用。
 
-> mrs 带格式版本号，高版本内核生成的 mrs 老内核可能拒绝加载。保守做法：生成 mrs 的内核版本 ≤ 你客户端内核版本。拿不准就用 `format: text` 直接吃文本，行为完全一致（同一份列表，text 和 mrs 实测命中结果逐条相同）。
+> mrs 跨版本：实测 **v1.19.33 生成的 mrs 能被 v1.19.12 正常读取，反向也正常**（命中结果逐条一致）。跨大版本没测过，保守做法仍是用与客户端内核接近的版本生成；拿不准就用 `format: text` 直接吃文本，行为完全一致（同一份列表，text 与 mrs 实测命中结果相同）。
 
 ## 客户端怎么引
 
@@ -101,20 +101,21 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Mihomo "D:\Applicati
 
 ## 构建链路实测（本仓库已跑通）
 
-本机内核 mihomo v1.19.12（windows amd64），用 v2rayN 自带的 `mihomo.exe` 跑 `scripts\build.ps1`：
+实测两个内核：**v1.19.12**（v2rayN 自带 `mihomo.exe`）和 **v1.19.33**（Clash Verge Rev 2.5.10 自带 `verge-mihomo.exe`），同一份列表两边都零 warning：
 
-```
-domain/cn-cdn-extra          365 B (mrs)   ← 文本 1089 B
-domain/fakeip-filter-extra   257 B (mrs)   ← 文本 818 B
-ipcidr/private-extra         133 B (mrs)   ← 文本 670 B
-```
+| 文件 | v1.19.33 | v1.19.12 |
+|---|---|---|
+| domain/cn-cdn-extra | 363 B | 363 B |
+| domain/fakeip-filter-extra | 255 B | 257 B |
+| ipcidr/private-extra | 129 B | 133 B |
 
 反解校验（`convert-ruleset domain mrs x.mrs dump.yaml`）确认内核实际收下的就是 `+.xxx` 形式，注释行和空行不进产物。
 
-两个踩过的坑：
+三个踩过的坑：
 
-1. **UTF-8 BOM**：列表文件带不带 BOM 内核都能解析（首行是注释或域名都实测无 warning）。但 **Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解析**，中文注释会直接把脚本解析坏（我第一次跑就是这么挂的）。本仓库的 `build.ps1` 是 **UTF-8 with BOM**，用编辑器改它时别把 BOM 去掉。
-2. **非法行只 warning、不报错**：`convert-ruleset` 碰到非法条目（如 `..bad.com`）打一条 warning 后跳过，**退出码仍是 0**。所以两个构建脚本都会 grep `invalid` 并主动 `exit 1`——否则坏行会静默进 dist。
+1. **`+` 后面必须跟 `.`**：写成 `+cn.bing.com`（漏了点）时，**v1.19.12 一声不吭地当废条目吞掉**，v1.19.33 / v1.19.34 会报 `"+" wildcard must occupy the entire label 1`。CI 用的是 v1.19.34，正是它把这个 typo 抓出来的——所以别把守卫关掉。
+2. **非法行只 warning、不报错**：`convert-ruleset` 碰到非法条目（如 `..bad.com`）打一条 warning 后跳过，**退出码仍是 0**。所以两个构建脚本都会 grep `invalid` 并主动 `exit 1`——否则坏行会静默进 dist。为什么 `..bad.com` 非法：新内核校验里 `.` 开头代表"仅子域"，`..x` 会出现空标签。
+3. **UTF-8 BOM / PowerShell 5.1**：列表文件带不带 BOM 内核都能解析（首行是注释或域名都实测无 warning）。但 **Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解析**，中文注释会直接把脚本解析坏（我第一次跑就是这么挂的）。`build.ps1` 存的是 **UTF-8 with BOM**，用编辑器改它时别把 BOM 去掉。
 
 ## 上线步骤
 
