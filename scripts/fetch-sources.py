@@ -6,8 +6,8 @@
 --------
 1. **声明式**：`sources/domain/<分类名>.src` 里一行一个来源，分类名就是文件名——
    这就是「分类整合」的全部机制，不需要改任何上游。
-2. **语法对齐 dlc**：来源行直接沿用 v2fly/domain-list-community 的语义，
-   `v2fly:apple @cn` 和 dlc 里的 `include:apple @cn` 含义一致（带 @cn 属性的才要）。
+2. **语法沿用上游数据集**：来源行直接沿用上游 data 目录的语法，
+   `data:apple @cn` 和上游的 `include:apple @cn` 含义一致（带 @cn 属性的才要）。
 3. **属性过滤**：`@a` = 必须有 a；`@-b` = 必须没有 b。多个条件是与关系。
 4. **归一化 + 压缩**：dlc 的 `domain:` → `+.x`（含自身与所有子域），`full:` → `x`（精确）。
    然后做后缀冗余消除：`+.x` 已经覆盖的条目直接删掉，列表能明显变小。
@@ -37,7 +37,7 @@ BUILD = ROOT / 'build'
 CACHE = ROOT / '.cache'
 UA = {'User-Agent': 'mihomo_Rules-fetch/1.0'}
 
-V2FLY_RAW = 'https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/{}'
+DATA_RAW = 'https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/{}'
 
 ATTR_RE = re.compile(r'^@(-?)([\w\-!]+)$')
 
@@ -67,7 +67,7 @@ def fetch(url, use_cache=True):
 
 
 class Remote:
-    """v2fly data/ 的取数代理，带缓存 + 递归 include。"""
+    """上游 data 目录的取数代理，带缓存 + 递归 include。"""
 
     def __init__(self, use_cache=True):
         self.use_cache = use_cache
@@ -77,7 +77,7 @@ class Remote:
         if name not in self.files:
             if not re.fullmatch(r'[\w\-.!]+', name):
                 raise RuntimeError('非法分类名: %r' % name)
-            self.files[name] = fetch(V2FLY_RAW.format(name), self.use_cache)
+            self.files[name] = fetch(DATA_RAW.format(name), self.use_cache)
         return self.files[name]
 
 
@@ -250,8 +250,8 @@ def read_sources(path):
         parts = line.split()
         spec, rest = parts[0], parts[1:]
         want, deny = parse_attr_filter(rest)
-        if spec.startswith('v2fly:'):
-            items.append(('v2fly', spec[len('v2fly:'):], want, deny))
+        if spec.startswith('data:'):
+            items.append(('data', spec[len('data:'):], want, deny))
         elif spec.startswith('url:'):
             items.append(('url', spec[len('url:'):], want, deny))
         elif spec.startswith('file:'):
@@ -264,9 +264,9 @@ def read_sources(path):
 def build_one(name, behavior, src_file, remote, use_cache):
     all_rules, extra, stats = [], [], []
     for kind, spec, want, deny in read_sources(src_file):
-        if kind == 'v2fly':
+        if kind == 'data':
             rules, skipped = parse_dlc(remote.raw(spec), remote, want, deny, (spec,))
-            stats.append('v2fly:%s%s=%d%s' % (spec, ''.join(' @' + a for a in sorted(want)),
+            stats.append('data:%s%s=%d%s' % (spec, ''.join(' @' + a for a in sorted(want)),
                                               len(rules),
                                               ' (+%d过滤)' % skipped if skipped else ''))
         elif kind == 'url':

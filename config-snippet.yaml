@@ -1,4 +1,4 @@
-# 把这段并进 mihomo 主配置（太极-final.yaml），Kauroth/mihomo_Rules 换成你自己的
+# 把这段并进 mihomo 主配置。Kauroth/mihomo_Rules 换成你自己的，
 # 集合名（fakeip-filter-extra 等）要和 dist 分支里的文件名一致
 
 rule-providers:
@@ -34,7 +34,7 @@ rule-providers:
 
 # ------------------------------------------------------------------
 # 然后：
-# 1) dns.fake-ip-filter 里加一条（放在 DustinWin 的 RULE-SET,fakeip-filter,real-ip 之后）
+# 1) dns.fake-ip-filter 里加一条（放在其它 fake-ip 过滤规则之后）
 #    - RULE-SET,my-fakeip,real-ip
 #
 # 2) rules 里，替换掉原来手写的那几段 DOMAIN-SUFFIX / IP-CIDR：

@@ -1,2 +1,2 @@
-# 广告：上游 anti-AD 太大（10 万条+），先只取 v2fly 的 category-ads-all
-v2fly:category-ads-all
+# 广告：anti-AD 主列表太大（10 万条+），这里只取上游的 category-ads-all
+data:category-ads-all

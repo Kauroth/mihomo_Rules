@@ -7,7 +7,7 @@
     python dump_geosite.py geosite.dat --cat apple     # 看某个分类的域名类型与属性分布
     python dump_geosite.py geosite.dat --attrs         # 只列各分类出现的 attribute
 
-protobuf 结构（v2ray/v2fly geosite.dat）:
+protobuf 结构（geosite.dat）:
     GeoSiteList { repeated GeoSite entry = 1 }
     GeoSite     { string country_code = 1; repeated Domain domain = 2 }
     Domain      { Type type = 1; string value = 2; repeated string attribute = 3 }

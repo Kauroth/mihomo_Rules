@@ -1,57 +1,65 @@
 # mihomo 自建规则集
 
-自己维护的 mihomo / Clash.Meta 规则集仓库。**源文件是纯文本**（人可读、可 diff、可写注释），由 GitHub Actions 编译成二进制 `.mrs` 发到 `dist` 分支，客户端按需取文本版或 mrs 版。
+自己用的 mihomo 规则集。源文件都是纯文本，GitHub Actions 每天编译成 `.mrs` 推到 `dist` 分支，客户端从 `dist` 取，改主分支不影响已经在用的配置。
 
 ## 目录
 
 ```
-sources/domain/*.src    声明式来源清单 —— 一行一个上游，生成 build/domain/<分类名>.txt
-sources/ipcidr/*.src    同上（ipcidr）
-rules/domain/*.txt      手写补丁，behavior: domain   —— 一行一个域名
-rules/ipcidr/*.txt      手写补丁，behavior: ipcidr   —— 一行一个 CIDR
-scripts/fetch-sources.py 按 sources/ 拉上游、归一化、去冗余 → build/（零依赖）
-scripts/build.sh        CI 用（Ubuntu / bash）
-scripts/build.ps1       本地用（Windows / PowerShell）
-scripts/dump-geosite.py 零依赖 geosite.dat 解析器（核对分类清单与 @cn 属性）
-docs/roadmap.md         架构决策与后续路线
-config-snippet.yaml     贴进 mihomo 主配置的 rule-providers 片段
-.github/workflows/      拉取 + 编译 + 发布到 dist 分支（每天 03:00 也会自己跑）
-build/                  fetch-sources.py 的产物（不入库）
-dist/                   编译产物（不入库，CI 自动推到 dist 分支）
+sources/domain/*.src     来源清单，一行一个上游；文件名即分类名
+sources/ipcidr/*.src     同上
+rules/domain/*.txt       手写的例外补丁，behavior: domain
+rules/ipcidr/*.txt       手写的例外补丁，behavior: ipcidr
+scripts/fetch-sources.py 按 sources/ 拉取、归一化、去冗余 → build/
+scripts/build.sh         CI 用（bash）
+scripts/build.ps1        本地用（PowerShell）
+scripts/dump-geosite.py  解析 geosite.dat，看分类和属性
+scripts/report-sources.py 打印每个分类的条目数和样例
+config-snippet.yaml      贴进主配置的 rule-providers 片段
+build/                   fetch-sources.py 的产物，不入库
+dist/                    编译产物，不入库，CI 推到 dist 分支
 ```
 
-## 文件内容规范（mihomo v1.19.12 实测，不是抄文档）
+## 两个来源
 
-### domain / ipcidr 用 `format: text`：一行一条
+`rules/` 放手工维护的、量小又需要盯的东西（比如实测过「国内有 CDN」的域名）。分类名就是文件名，一行一条。
 
-`#` 开头的注释行和空行都会被内核忽略，实测不产生 warning——**放心写注释**。
-
-### 通配符语义（domain 类型，实测结果）
-
-| 写法 | 匹配 | 不匹配 |
-|---|---|---|
-| `example.com` | `example.com` 精确 | `sub.example.com` ✘ |
-| `+.example.com` | `example.com`、`sub.example.com`、`a.b.example.com`（含自身 + 任意层级子域） | — |
-| `.example.com` | `sub.example.com`、`a.b.example.com`、`x.y.z.example.com`（任意层级子域） | `example.com` 自身 ✘ |
-| `*.example.com` | `sub.example.com`（**只有一级**） | `example.com` ✘、`a.b.example.com` ✘ |
-| `..example.com` | **无效写法**，内核直接丢弃并报 `invalid domain:[..example.com]` | 全部 ✘ |
-
-实测方法：起 mihomo + `rule-providers(type: file, behavior: domain, format: text)` + `RULE-SET` 指到 `REJECT`，逐个域名打请求后看日志里命中的规则名。日志原文：
+`sources/` 放大块的、能从上游拉的东西。一行一个来源：
 
 ```
---> bare.com:80     match RuleSet(lab) using REJECT     # 列表里写的是 bare.com
---> sub.bare.com:80 match Match using REJECT
---> suffix.com:80   match RuleSet(lab) using REJECT     # 列表里写的是 +.suffix.com
---> sub.dot.com:80  match RuleSet(lab) using REJECT     # 列表里写的是 .dot.com
---> dot.com:80      match Match using REJECT
---> a.b.star.com:80 match Match using REJECT            # 列表里写的是 *.star.com
+data:telegram                  # 上游 data 目录里的 telegram，自动递归解析 include
+data:apple @cn                 # 只要带 @cn 属性的；@-ads 是排除
+url:https://.../OpenAI.list    # 远端 Clash 格式 list，或一行一个域名的纯文本
+file:rules/domain/xxx.txt      # 本地文件
 ```
 
-**结论：写后缀用 `+.`，不要用 `.` 或 `*.`。** 原 Clash wiki 里 `..domain` 那种写法已经不被 mihomo 接受。
+`fetch-sources.py` 读这些清单，拉回来之后做两件事：
 
-### classical 类型
+- 归一化。上游的 `domain:` 转成 `+.x`（含自身和所有子域），`full:` 转成 `x`（精确）。
+- 去冗余。被 `+.x` 覆盖的条目直接删掉。`proxy` 这一项从 26732 条压到 23703 条。
 
-一行一条完整规则，除了 rule-set / sub-rule 之外什么都能放：
+同名分类如果 `rules/` 和 `build/` 里都有，编译时按顺序拼起来，`build/` 在前、`rules/` 追加在后。
+
+`@cn` 这个属性有实际用处：上游把「国内有接入点」的域名单独标出来，所以 `data:geolocation-!cn @-cn` 拿到的国外域名集合里不含那些域名，不会出现「域名被解析到海外节点、然后 DIRECT 直连」的情况。
+
+keyword 和 regexp 在 `behavior: domain` 里没有对应语法，会另存到 `build/classical/<分类名>.list`，需要的话用 classical provider 引。
+
+## 文本格式
+
+内核版本按 v1.19.12 实测。注释行和空行都会被忽略，可以放心写。
+
+domain 类型里几种写法的实际行为：
+
+| 写法 | 匹配 |
+|---|---|
+| `example.com` | 只有 `example.com` 本身 |
+| `+.example.com` | `example.com`、`sub.example.com`、`a.b.example.com` |
+| `.example.com` | 任意层级子域，但不含 `example.com` 本身 |
+| `*.example.com` | 只有一级子域，不含 `example.com`，也不含 `a.b.example.com` |
+| `..example.com` | 无效，内核丢弃并报 `invalid domain` |
+
+写后缀统一用 `+.`。`.x` 和 `*.x` 在 sing-box 里没有对应写法，一旦用了，两个内核的行为就对不上。
+
+classical 类型一行一条完整规则，除了 rule-set 和 sub-rule 什么都能放：
 
 ```
 DOMAIN-SUFFIX,google.com
@@ -60,120 +68,70 @@ IP-CIDR,1.2.3.0/24,no-resolve
 PROCESS-NAME,qbittorrent.exe
 ```
 
-代价是逐条匹配，比 domain / ipcidr 慢，只在必须混装时才用（实测 `DOMAIN` / `DOMAIN-SUFFIX` / `DOMAIN-KEYWORD` 三种在 text 列表里都正常命中）。
+逐条匹配，比 domain / ipcidr 慢，只在必须混装的时候用。
 
-## 自动补全与分类整合：`sources/`
-
-`rules/` 里是手写的「例外补丁」（量小、要盯）；大块分类不手写，由
-`sources/<behavior>/<分类名>.src` 声明，`scripts/fetch-sources.py` 拉取上游、归一化、去冗余，
-生成 `build/<behavior>/<分类名>.txt`。**分类名就是文件名** —— 这就是「整合凌乱分类」的全部机制，
-不需要动任何上游。
-
-来源行语法直接沿用 v2fly/domain-list-community 的语义（学一套就够）：
-
-```
-v2fly:telegram                  # v2fly data/telegram，自动递归解析 include:
-v2fly:apple @cn                 # 只要带 @cn 属性的；@-ads 是排除语义
-url:https://.../OpenAI.list     # 远端 Clash 格式 list，或一行一个域名的纯文本
-file:rules/domain/xxx.txt       # 本地文件
-```
-
-两个自动化能力都是 v2fly 数据自带的：
-
-- **补全**：v2fly 有 `telegram` / `twitter` / `instagram` / `facebook` / `tiktok` 这些单平台分类，
-  那家 geosite.dat 里没有（它的源是 Clash `.list`，语法上表达不了）—— 引一下就有了。
-- **整合**：`@cn` 属性把「国内有接入点」的域名单独切出来。`v2fly:geolocation-!cn @-cn`
-  拿到的是**剔掉了国内可直连域名**的国外域名集合，比 `geosite:geolocation-!cn` 干净，
-  也就不会再出现「被 8.8.8.8 解析到海外边缘节点之后 DIRECT」那类问题。
-
-归一化做两件事：dlc 的 `domain:` → `+.x`（含自身与所有子域），`full:` → `x`（精确）；
-然后再把已被 `+.x` 覆盖的条目删掉（`proxy` 从 26732 条压到 23703 条）。
-
-keyword / regexp 进不了 `behavior: domain`（没有对应语法），会另存
-`build/classical/<分类名>.list`，需要的人用 classical provider 引。
-
-> ⚠️ `mihomo convert-ruleset classical text` 在 v1.19.25 上**必 panic**
-> （`classical_strategy.go:57` nil 解引用），而且 **panic 之后退出码仍然是 0**。
-> 所以 classical 只出文本、不出 mrs；两个构建脚本都把 `panic` 和 `invalid` 一起 grep 了。
-
-## 本地构建（Windows）
+## 本地构建
 
 ```powershell
-# 第一次：把 mihomo 内核放到 .tools\mihomo.exe（下面这条自动下 windows zip）
+# 拉上游，生成 build/
+python scripts\fetch-sources.py
+
+# 编译。第一次加 -FetchCore 会自动下内核到 .tools\
 powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -FetchCore
 
-# 之后每次改完 rules\ 就跑
-powershell -ExecutionPolicy Bypass -File scripts\build.ps1
+# 用机器上已有的内核
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Mihomo "D:\path\to\mihomo.exe"
 ```
 
-也可以用机器上已有的内核（例如 v2rayN 自带的）：
+想单独跑一个分类，把名字接在后面：`python scripts\fetch-sources.py telegram cn`。
+
+`report-sources.py` 会列出每个分类的条目数和几条样例，用来核对产物对不对。`dump-geosite.py` 用来分析别人的 geosite.dat，看里面有哪些分类、有没有属性。
+
+反解校验：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Mihomo "D:\Applications\v2rayN-windows-64\bin\mihomo\mihomo.exe"
+mihomo convert-ruleset domain mrs dist\domain\proxy.mrs dump.yaml
 ```
 
-脚本会：`convert-ruleset` 编译每个 `.txt` → `dist/<behavior>/<name>.mrs`，同时把文本版一起拷进 `dist/`；**任何一行非法（`invalid ...`）就整体失败**，不会把坏规则推上去。
+## CI
 
-产物校验（可选）：`mihomo convert-ruleset domain mrs dist\domain\xxx.mrs dump.yaml` 能把 mrs 反解成 yaml，肉眼看一下内核实际收下了哪些条目。
+`push` 到 `Kauroth` 分支、改动 `rules/` `sources/` `scripts/` 时触发，每天 03:00（北京时间）也会跑一次。流程是下内核、拉上游、编译、把 `dist/` 强推到 `dist` 分支。
 
-## CI（GitHub Actions）
+## 客户端引用
 
-`push` 到 `main`（改动了 `rules/`）或手动 `workflow_dispatch` 触发：
-1. 下载 mihomo linux-amd64（`-compatible` 版，兼容性最好）
-2. `scripts/build.sh` 编译 → `dist/`
-3. 把 `dist/` 强推到仓库的 **`dist` 分支**（单文件一次提交，带 `GITHUB_TOKEN`，不需要额外 secret）
+见 `config-snippet.yaml`。几个注意点：
 
-客户端永远指向 `dist` 分支，`main` 上怎么改都不影响使用。
+- 用 jsDelivr：`https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/xxx.mrs`。raw.githubusercontent.com 在国内经常拉不动。
+- 非要拉 raw 就得给 provider 指定出口（`proxy: 节点选择`），不写这一项走 DIRECT，会出现「网能上但规则集永远不更新」。
+- `path` 必须落在 mihomo 的 HomeDir（`-d` 指定）里，否则要设 `SAFE_PATHS`。
+- jsDelivr 对分支引用有缓存。改完发现客户端拿到的还是旧内容，去 purge 页面刷一下，或者临时换 raw URL 验证。
+- 只有几个域名的小例外不值得进仓库，用 `type: inline` + `payload` 写在主配置里（mihomo ≥ v1.19.1）。
 
-> mrs 跨版本：实测 **v1.19.33 生成的 mrs 能被 v1.19.12 正常读取，反向也正常**（命中结果逐条一致）。跨大版本没测过，保守做法仍是用与客户端内核接近的版本生成；拿不准就用 `format: text` 直接吃文本，行为完全一致（同一份列表，text 与 mrs 实测命中结果相同）。
+## 几个坑
 
-## 客户端怎么引
+**`+` 后面必须跟 `.`。** 写成 `+cn.bing.com` 的时候，v1.19.12 会把它当废条目静默吞掉，v1.19.33 以上报 `"+" wildcard must occupy the entire label 1`。CI 用的内核版本比本地新，就是靠它把这个 typo 抓出来的。
 
-见 `config-snippet.yaml`。要点：
+**非法行只 warning，不报错。** `convert-ruleset` 遇到非法条目打一条 warning 然后跳过，退出码仍然是 0。两个构建脚本都会 grep `invalid` 并主动失败，否则坏行会静默进 `dist`。
 
-- `url` 优先用 **jsDelivr**：`https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/<path>`
-  `raw.githubusercontent.com` 在国内常被 reset，不用代理基本拉不下来；jsDelivr 一般直连可达。
-- 真要拉 raw，就给它指定出口：`proxy: 节点选择`（不写这一项走 DIRECT）。少写会踩"能上网但规则集永远不更新"的坑。
-- `path` 只能落在 mihomo 的 HomeDir（`-d` 指定的目录）里，否则要设 `SAFE_PATHS` 环境变量。
-- `interval: 86400` 够用；文本集合几十 KB，一天拉一次没负担。
-- jsDelivr 对分支引用有缓存，改完发现客户端拿到的还是旧内容 → 去 jsdelivr 的 purge 页面刷一下，或临时换 raw URL 验证。
-- 只有几个域名的小例外，不值得进仓库：用 `type: inline` + `payload` 直接写在主配置里（mihomo ≥ v1.19.1）。
+**classical 不要编译成 mrs。** v1.19.25 上 `convert-ruleset classical text` 必定 panic（`classical_strategy.go:57`），而且 panic 之后退出码还是 0。所以 classical 只出文本，脚本里把 `panic` 和 `invalid` 一起 grep。
 
-## 构建链路实测（本仓库已跑通）
+**mrs 跨版本。** v1.19.33 生成的 mrs 能被 v1.19.12 正常读取，反过来也可以，命中结果一致。跨大版本没测过，保守做法是用接近客户端内核的版本生成；拿不准就直接用 `format: text`，同一份列表两种格式的命中结果是一样的。
 
-实测两个内核：**v1.19.12**（v2rayN 自带 `mihomo.exe`）和 **v1.19.33**（Clash Verge Rev 2.5.10 自带 `verge-mihomo.exe`），同一份列表两边都零 warning：
+**PowerShell 5.1 读 .ps1 的编码。** Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解析，中文注释会把脚本解析坏。`build.ps1` 存的是 UTF-8 with BOM，改它的时候别把 BOM 去掉。
 
-| 文件 | v1.19.33 | v1.19.12 |
-|---|---|---|
-| domain/cn-cdn-extra | 363 B | 363 B |
-| domain/fakeip-filter-extra | 255 B | 257 B |
-| ipcidr/private-extra | 129 B | 133 B |
+## 和别的规则集混用时的顺序
 
-反解校验（`convert-ruleset domain mrs x.mrs dump.yaml`）确认内核实际收下的就是 `+.xxx` 形式，注释行和空行不进产物。
+如果同时引了别的集合，注意它们里面会有 `+.apple.com`、`+.microsoft.com`、`+.live.com` 这类父域。这些父域一旦先命中，本仓库里分好的「国内 CDN 直连」就全部失效。直连集合要排在前面，`cn-cdn-extra` 就是为这个准备的：
 
-三个踩过的坑：
-
-1. **`+` 后面必须跟 `.`**：写成 `+cn.bing.com`（漏了点）时，**v1.19.12 一声不吭地当废条目吞掉**，v1.19.33 / v1.19.34 会报 `"+" wildcard must occupy the entire label 1`。CI 用的是 v1.19.34，正是它把这个 typo 抓出来的——所以别把守卫关掉。
-2. **非法行只 warning、不报错**：`convert-ruleset` 碰到非法条目（如 `..bad.com`）打一条 warning 后跳过，**退出码仍是 0**。所以两个构建脚本都会 grep `invalid` 并主动 `exit 1`——否则坏行会静默进 dist。为什么 `..bad.com` 非法：新内核校验里 `.` 开头代表"仅子域"，`..x` 会出现空标签。
-3. **UTF-8 BOM / PowerShell 5.1**：列表文件带不带 BOM 内核都能解析（首行是注释或域名都实测无 warning）。但 **Windows PowerShell 5.1 读无 BOM 的 `.ps1` 会按 GBK 解析**，中文注释会直接把脚本解析坏（我第一次跑就是这么挂的）。`build.ps1` 存的是 **UTF-8 with BOM**，用编辑器改它时别把 BOM 去掉。
-
-## 上线步骤
-
-仓库已建好：`Kauroth/mihomo_Rules`，public，**默认分支名是 `Kauroth`（不是 main）**——workflow 里已经按这个名字配好触发分支。
-
-```bash
-git clone https://github.com/Kauroth/mihomo_Rules
-cd mihomo_Rules
-# 把脚手架里的文件拷进来，README.md 直接覆盖掉建仓时自动生成的那个
-git add -A
-git commit -m "init: 自建 mihomo 规则集"
-git push
+```yaml
+rules:
+  - RULE-SET,private-extra,DIRECT,no-resolve
+  - RULE-SET,cn-ip,DIRECT,no-resolve
+  - RULE-SET,cn-cdn-extra,DIRECT
+  - RULE-SET,apple-cn,DIRECT
+  - RULE-SET,microsoft-cn,DIRECT
+  - RULE-SET,google-cn,DIRECT
+  - RULE-SET,steam-cn,DIRECT
+  - RULE-SET,cn,DIRECT
+  # 之后才是各平台策略组，最后 MATCH
 ```
-
-推完之后：Actions 里 `build ruleset` 跑绿 → `dist` 分支里出现 `domain/*.mrs` + `domain/*.txt` → 就能在 mihomo 里引用了。
-
-> 本机给 github.com 配过 git 代理（`http.https://github.com/.proxy = 127.0.0.1:7897`），**Clash 没开时 push 会失败**。另外这台机器没有缓存 GitHub 凭据（system 级 credential helper 是 `helper-selector`，会弹窗），push 那一下得在真实终端里手动授权一次。
-
-## 排序坑（和别人的规则集混用时）
-
-如果同时用 DustinWin / MetaCubeX 的集合：它们 `proxy` / `geolocation-!cn` 里有 `+.apple.com`、`+.microsoft.com`、`+.live.com` 这类父域，会把你辛苦分类的「国内 CDN 直连」整个吃掉。**你自己的直连集合必须排在那些集合之前**，本仓库的 `cn-cdn-extra.txt` 就是干这个用的。

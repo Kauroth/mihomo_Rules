@@ -1,4 +1,4 @@
 # fake-ip 例外：NTP/STUN 必须走 realip，否则时间同步与通话异常
-v2fly:category-ntp
-v2fly:category-stun
+data:category-ntp
+data:category-stun
 file:rules/domain/fakeip-filter-extra.txt
