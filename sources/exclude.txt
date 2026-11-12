@@ -1,0 +1,80 @@
+# 垃圾域名剔除规则。对所有 domain 分类生效，被剔掉的条目会收集到 build/domain/junk.txt，
+# 可以整集指到 REJECT（不想要就直接不引这个分类）。
+#
+# 规则按顺序求值，后面的可以推翻前面的，所以「先粗筛、再放行」是这么写的：
+#
+#   ~词        子串命中
+#   !词        子串命中就放行（例外）
+#   +.域名     后缀命中（含域名自身）
+#   域名       精确命中
+#   @rand      首标签疑似随机串
+#
+# ads / anti-ad / junk 这三个分类本身就在装垃圾，脚本里不做剔除（见 EXCLUDE_SKIP）。
+
+# ---------- 成人 ----------
+~porn
+~xxx
+~hentai
+~pussy
+~milf
+~tits
+~jav
+!java
+!javbooks
+~chaturbate
+~stripchat
+~bongacams
+~livejasmin
+~onlyfans
+~fansly
+~camgirl
+~adult
+~nsfw
+~dildo
+~cum
+!document
+~sex
+!sussex
+!essex
+!middlesex
+!unisex
+!adwords
+~escort
+~hookup
+
+# ---------- 赌博 ----------
++10bet.com
++1xbet.com
++1xbet.cm
++foxbet.com
+~baccarat
+~sbobet
+~dafabet
+~918kiss
+~roulette
+~jackpot
+
+# ---------- 盗版 / 追踪器 ----------
+~torrent
+!bittorrent
+!utorrent
+~rarbg
+~1337x
+~piratebay
+~nyaa
+~eztv
+~tokyotosho
+~animetosho
+~dmhy
+~subscene
+~putlocker
+~fmovies
+~watchseries
+!applewatch
+
+# ---------- 统计 / 归因 SDK ----------
+~appsflyersdk
+~umengcloud
+~talkingdata
+~appmetrica
+~crashlytics

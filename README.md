@@ -7,13 +7,16 @@
 ```
 sources/domain/*.src     来源清单，一行一个上游；文件名即分类名
 sources/ipcidr/*.src     同上
+sources/exclude.txt      垃圾域名剔除规则
 rules/domain/*.txt       手写的例外补丁，behavior: domain
 rules/ipcidr/*.txt       手写的例外补丁，behavior: ipcidr
-scripts/fetch-sources.py 按 sources/ 拉取、归一化、去冗余 → build/
+scripts/fetch-sources.py 按 sources/ 拉取、归一化、去冗余、剔垃圾 → build/
 scripts/build.sh         CI 用（bash）
 scripts/build.ps1        本地用（PowerShell）
-scripts/dump-geosite.py  解析 geosite.dat，看分类和属性
 scripts/report-sources.py 打印每个分类的条目数和样例
+scripts/check-keywords.py 看某个关键词会命中哪些域名，用来查误杀
+scripts/check-junk.py    看 junk 是被哪条规则抓的
+scripts/dump-geosite.py  解析 geosite.dat，看分类和属性
 config-snippet.yaml      贴进主配置的 rule-providers 片段
 build/                   fetch-sources.py 的产物，不入库
 dist/                    编译产物，不入库，CI 推到 dist 分支
@@ -28,20 +31,81 @@ dist/                    编译产物，不入库，CI 推到 dist 分支
 ```
 data:telegram                  # 上游 data 目录里的 telegram，自动递归解析 include
 data:apple @cn                 # 只要带 @cn 属性的；@-ads 是排除
-url:https://.../OpenAI.list    # 远端 Clash 格式 list，或一行一个域名的纯文本
+url:https://.../OpenAI.list    # 远端 Clash 格式 list，或一行一个域名或 CIDR 的纯文本
+json:https://.../goog.json|prefixes[].ipv4Prefix   # JSON 接口，| 后面是取值路径
+asn:2906                       # 按 ASN 取该 AS 公布的所有前缀
 file:rules/domain/xxx.txt      # 本地文件
 ```
 
-`fetch-sources.py` 读这些清单，拉回来之后做两件事：
+`json:` 的取值路径用 `.` 分隔字段，`[]` 表示展开数组，顶层就是数组时写 `[].ips`。`asn:` 走 RIPE 的接口，一次一个 AS。
+
+`fetch-sources.py` 读这些清单，拉回来之后做三件事：
 
 - 归一化。上游的 `domain:` 转成 `+.x`（含自身和所有子域），`full:` 转成 `x`（精确）。
-- 去冗余。被 `+.x` 覆盖的条目直接删掉。`proxy` 这一项从 26732 条压到 23703 条。
+- 去冗余。被 `+.x` 覆盖的条目直接删掉。
+- 剔垃圾。见下面一节。
 
 同名分类如果 `rules/` 和 `build/` 里都有，编译时按顺序拼起来，`build/` 在前、`rules/` 追加在后。
 
 `@cn` 这个属性有实际用处：上游把「国内有接入点」的域名单独标出来，所以 `data:geolocation-!cn @-cn` 拿到的国外域名集合里不含那些域名，不会出现「域名被解析到海外节点、然后 DIRECT 直连」的情况。
 
 keyword 和 regexp 在 `behavior: domain` 里没有对应语法，会另存到 `build/classical/<分类名>.list`，需要的话用 classical provider 引。
+
+## 剔垃圾
+
+`sources/exclude.txt` 里的规则对所有 domain 分类生效，被剔掉的条目会集中到 `build/domain/junk.txt`，客户端可以整集指到 REJECT。
+
+```
+~porn        子串命中
+!java        子串命中就放行（例外）
++10bet.com   后缀命中，含域名自身
+example.com  精确命中
+```
+
+按顺序求值，后面的能推翻前面的，所以「先粗筛再放行」写成 `~jav` 后面跟 `!java`。`ads`、`anti-ad`、`junk` 三个分类本身就在装垃圾，不做剔除。
+
+试过用「首标签像随机串」的启发式自动兜那些随机域名，误杀太重就撤了：`appldnld.apple.com`、`360buyimg.com`、`17173cdn.com`、`51jobcdn.com` 这类数字前缀加缩写在国内域名里到处都是。所以现在只留关键词规则，每条都能解释、能 review。要查某条关键词误伤了谁，用 `scripts/check-keywords.py`；要看 junk 是被哪条规则抓的，用 `scripts/check-junk.py`。
+
+## IP 分流
+
+ipcidr 分类都是现成的，来源要么是官方公布的网段，要么是按 AS 反查：
+
+| 分类 | 来源 | 条数 |
+|---|---|---|
+| `cn-ip` | 国内 IP 库，两个源交叉 | 8842 |
+| `oracle-ip` | AS31898 | 3877 |
+| `facebook-ip` | AS32934 | 560 |
+| `netflix-ip` | AS2906 / 40027 / 55095 | 558 |
+| `google-ip` | 官方 goog.json | 148 |
+| `microsoft-ip` | 微软端点接口 | 93 |
+| `steam-ip` | AS32590 | 78 |
+| `cloudflare-ip` | 官方两份纯文本 | 22 |
+| `telegram-ip` | 官方 cidr.txt | 14 |
+| `private-extra` | 手写 | 14 |
+
+IP 规则和域名规则混用时的注意点：
+
+- 域名规则在前、IP 规则在后。反过来会让每个请求都先做一次 DNS 解析。
+- IP 规则后面加 `no-resolve`，除非你确实想让内核为了这条规则去解析域名。
+- IP 规则是「解析之后才匹配」，所以它兜的是域名规则漏掉的连接（比如直连 IP 的 CDN、QUIC），不能拿它替代域名规则。
+
+```yaml
+rules:
+  - RULE-SET,private-extra,DIRECT,no-resolve
+  - RULE-SET,cn-ip,DIRECT,no-resolve
+  - RULE-SET,cn-cdn-extra,DIRECT
+  # ... 各平台域名规则
+  - RULE-SET,netflix,🎥 奈飞视频
+  - RULE-SET,telegram,📲 电报消息
+  # ... 域名规则走完，再上 IP 规则
+  - RULE-SET,netflix-ip,🎥 奈飞视频,no-resolve
+  - RULE-SET,telegram-ip,📲 电报消息,no-resolve
+  - RULE-SET,google-ip,🇬 谷歌服务,no-resolve
+  - RULE-SET,microsoft-ip,🪟 微软服务,no-resolve
+  - RULE-SET,cloudflare-ip,🚀 节点选择,no-resolve
+  - RULE-SET,junk,REJECT
+  - MATCH,🐟 漏网之鱼
+```
 
 ## 文本格式
 
@@ -95,7 +159,7 @@ mihomo convert-ruleset domain mrs dist\domain\proxy.mrs dump.yaml
 
 ## CI
 
-`push` 到 `Kauroth` 分支、改动 `rules/` `sources/` `scripts/` 时触发，每天 03:00（北京时间）也会跑一次。流程是下内核、拉上游、编译、把 `dist/` 强推到 `dist` 分支。
+`push` 到 `main`、改动 `rules/` `sources/` `scripts/` 时触发，每天 03:00（北京时间）也会跑一次。流程是下内核、拉上游、编译、把 `dist/` 强推到 `dist` 分支。
 
 ## 客户端引用
 

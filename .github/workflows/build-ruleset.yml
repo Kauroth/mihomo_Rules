@@ -2,7 +2,7 @@ name: build ruleset
 
 on:
   push:
-    branches: [Kauroth]      # 注意：这个仓库的默认分支名是 Kauroth，不是 main
+    branches: [main]      # 默认分支
     paths:
       - 'rules/**'
       - 'sources/**'

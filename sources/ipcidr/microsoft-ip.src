@@ -1,0 +1,2 @@
+# 微软 365 / Azure 官方端点接口，每个端点对象的 ips 字段是 IPv4/IPv6 混排的 CIDR
+json:https://endpoints.office.com/endpoints/worldwide?clientRequestId=b10c5ed1-bad1-445f-b386-b919946339a7|[].ips

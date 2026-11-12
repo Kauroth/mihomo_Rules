@@ -9,10 +9,19 @@
 2. **语法沿用上游数据集**：来源行直接沿用上游 data 目录的语法，
    `data:apple @cn` 和上游的 `include:apple @cn` 含义一致（带 @cn 属性的才要）。
 3. **属性过滤**：`@a` = 必须有 a；`@-b` = 必须没有 b。多个条件是与关系。
-4. **归一化 + 压缩**：dlc 的 `domain:` → `+.x`（含自身与所有子域），`full:` → `x`（精确）。
+4. **归一化 + 压缩**：上游的 `domain:` → `+.x`（含自身与所有子域），`full:` → `x`（精确）。
    然后做后缀冗余消除：`+.x` 已经覆盖的条目直接删掉，列表能明显变小。
 5. **keyword / regexp 不丢**：mihomo 的 `behavior: domain` 装不下它们（没有对应语法），
    所以另存 `build/classical/<分类>.list`，需要的人用 classical provider 引。
+6. **排除垃圾**：`sources/exclude.txt` 定义剔除规则，对所有 domain 分类生效；
+   被剔掉的条目单独收集成 `build/domain/junk.txt`，可以整集指到 REJECT。
+
+来源类型：
+    data:分类名 [@属性]      上游 data 目录，自动递归解析 include
+    url:地址                 远端 Clash list，或一行一个域名 / CIDR 的纯文本
+    json:地址|选择器         JSON 接口，选择器如 prefixes[].ipv4Prefix / [].ipv4
+    asn:2906                 按 ASN 取该 AS 公布的 IP 段
+    file:相对路径            仓库里的本地文件
 
 零依赖（只用标准库），带本地缓存，重复跑不会反复拉上游。
 
@@ -24,6 +33,7 @@
 import os
 import re
 import sys
+import json
 import time
 import shutil
 import hashlib
@@ -38,11 +48,114 @@ CACHE = ROOT / '.cache'
 UA = {'User-Agent': 'mihomo_Rules-fetch/1.0'}
 
 DATA_RAW = 'https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/{}'
+RIPESTAT = 'https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{}'
+
+# 这些分类本身就在装垃圾，不必再被 exclude 过滤一遍
+EXCLUDE_SKIP = {'ads', 'anti-ad', 'junk'}
 
 ATTR_RE = re.compile(r'^@(-?)([\w\-!]+)$')
+CIDR_RE = re.compile(r'[0-9a-fA-F:.]+/\d{1,3}$')
 
 
 # ----------------------------------------------------------------- 工具
+
+def jsonpath(data, sel):
+    """极简 JSON 取值：`.key` 取字段，`key[]` / `[]` 展开数组。
+
+    'prefixes[].ipv4Prefix'  → 取 prefixes 数组里每项的 ipv4Prefix
+    '[].ipv4'                → 顶层就是数组时用
+    """
+    cur = [data]
+    for part in sel.split('.'):
+        arr = part.endswith('[]')
+        key = part[:-2] if arr else part
+        nxt = []
+        for node in cur:
+            if key == '':
+                vals = node if isinstance(node, list) else [node]
+            elif isinstance(node, dict) and key in node:
+                vals = node[key]
+            else:
+                continue
+            if arr:
+                nxt.extend(vals if isinstance(vals, list) else [vals])
+            else:
+                nxt.append(vals)
+        cur = nxt
+    out = []
+    for node in cur:
+        if isinstance(node, str):
+            out.append(node)
+        elif isinstance(node, list):
+            out.extend(x for x in node if isinstance(x, str))
+    return out
+
+
+VOWELS = set('aeiou')
+WORDLIKE = re.compile(r'^[a-z0-9-]+$')
+
+
+class Excluder:
+    """按 sources/exclude.txt 判断一个域名要不要剔掉。
+
+    规则按顺序求值，后面的可以推翻前面的，所以「先粗筛、再放行」是这么写的：
+
+        ~jav        子串
+        !java       子串命中就放行
+        +.a.com     后缀（含自身）
+        a.com       精确
+
+    曾经试过用「首标签像随机串」的启发式来兜垃圾站，实测误杀太重
+    （appldnld.apple.com、360buyimg.com、17173cdn.com、51jobcdn.com 这类
+    数字前缀 + 缩写在国内域名里太常见），已经去掉。关键词规则虽然要人工维护，
+    但每一条都能解释、能 review。
+    """
+
+    def __init__(self, rules):
+        self.rules = rules
+
+    def __bool__(self):
+        return bool(self.rules)
+
+    def hit(self, host):
+        host = host.lower()
+        state = False
+        for kind, val in self.rules:
+            if kind == 'sub':
+                if val in host:
+                    state = True
+            elif kind == 'not':
+                if val in host:
+                    state = False
+            elif kind == 'exact':
+                if host == val:
+                    state = True
+            elif kind == 'suffix':
+                if host == val or host.endswith('.' + val):
+                    state = True
+        return state
+
+
+def load_excluder():
+    path = SRC / 'exclude.txt'
+    if not path.exists():
+        return Excluder([])
+    rules = []
+    for raw in path.read_text('utf-8').splitlines():
+        line = raw.split('#', 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith('~'):
+            rules.append(('sub', line[1:].lower()))
+        elif line.startswith('!'):
+            rules.append(('not', line[1:].lower()))
+        elif line.startswith('+.'):
+            rules.append(('suffix', line[2:].lower()))
+        else:
+            rules.append(('exact', line.lower()))
+    print('exclude.txt: %d 条规则' % len(rules))
+    return Excluder(rules)
+
 
 def fetch(url, use_cache=True):
     """下载并缓存。返回文本；失败抛异常。"""
@@ -254,6 +367,13 @@ def read_sources(path):
             items.append(('data', spec[len('data:'):], want, deny))
         elif spec.startswith('url:'):
             items.append(('url', spec[len('url:'):], want, deny))
+        elif spec.startswith('json:'):
+            url, _, sel = spec[len('json:'):].partition('|')
+            if not sel:
+                raise RuntimeError('json: 需要选择器，例如 json:https://x/y.json|a[].b')
+            items.append(('json', (url, sel), want, deny))
+        elif spec.startswith('asn:'):
+            items.append(('asn', spec[len('asn:'):].lstrip('AS'), want, deny))
         elif spec.startswith('file:'):
             items.append(('file', spec[len('file:'):], want, deny))
         else:
@@ -261,7 +381,7 @@ def read_sources(path):
     return items
 
 
-def build_one(name, behavior, src_file, remote, use_cache):
+def build_one(name, behavior, src_file, remote, use_cache, excluder, junk):
     all_rules, extra, stats = [], [], []
     for kind, spec, want, deny in read_sources(src_file):
         if kind == 'data':
@@ -274,6 +394,27 @@ def build_one(name, behavior, src_file, remote, use_cache):
             rules, other = parse_plain_or_clash(text, bare_is_suffix=True)
             extra += other
             stats.append('url:%s=%d' % (spec.split('/')[-1], len(rules)))
+        elif kind == 'json':
+            url, sel = spec
+            data = json.loads(fetch(url, use_cache))
+            found = jsonpath(data, sel)
+            rules = []
+            for v in found:
+                if CIDR_RE.fullmatch(v.strip()):
+                    extra.append('IP-CIDR,%s' % v.strip())
+                else:
+                    rules.append(('domain', v, frozenset()))
+            stats.append('json:%s#%s=%d' % (url.split('/')[-1][:22], sel, len(found)))
+        elif kind == 'asn':
+            data = json.loads(fetch(RIPESTAT.format(spec), use_cache))
+            found = jsonpath(data, 'data.prefixes[].prefix')
+            rules = []
+            for v in found:
+                if CIDR_RE.fullmatch(v.strip()):
+                    extra.append('IP-CIDR,%s' % v.strip())
+                else:
+                    rules.append(('domain', v, frozenset()))
+            stats.append('asn:AS%s=%d' % (spec, len(found)))
         else:
             text = (ROOT / spec).read_text('utf-8', 'replace')
             rules, other = parse_plain_or_clash(text)
@@ -299,6 +440,15 @@ def build_one(name, behavior, src_file, remote, use_cache):
         body = sorted(set(ips))
     else:
         body = ['+.%s' % s for s in sorted(suffix)] + sorted(exact)
+        if excluder and name not in EXCLUDE_SKIP:
+            kept, dropped = [], []
+            for line in body:
+                host = line[2:] if line.startswith('+.') else line
+                (dropped if excluder.hit(host) else kept).append(line)
+            if dropped:
+                junk.update(dropped)
+                stats.append('exclude=-%d' % len(dropped))
+                body = kept
     note = '  ← ' + ' | '.join(stats) if stats else ''
     (outdir / (name + '.txt')).write_text('\n'.join([header] + body) + '\n', 'utf-8')
 
@@ -326,6 +476,8 @@ def main():
     if BUILD.exists():                                # 全量重建，避免残留旧分类
         shutil.rmtree(BUILD)
     remote = Remote(use_cache)
+    excluder = load_excluder()
+    junk = set()
     total = 0
     for behavior in ('domain', 'ipcidr'):
         d = SRC / behavior
@@ -337,9 +489,16 @@ def main():
             if wanted and name not in wanted:
                 continue
             try:
-                total += build_one(name, behavior, src_file, remote, use_cache)
+                total += build_one(name, behavior, src_file, remote, use_cache, excluder, junk)
             except Exception as e:                   # noqa: BLE001
                 print('!! %-20s %s' % (name, e))
+
+    if junk:                       # 被剔掉的条目单独成集，方便直接指到 REJECT
+        out = BUILD / 'domain' / 'junk.txt'
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text('\n'.join(['# 被 sources/exclude.txt 剔出来的条目 —— 不要手改'] +
+                                 sorted(junk)) + '\n', 'utf-8')
+        print('\njunk %d 条（从各分类里剔除，单独成集）' % len(junk))
     print('\n合计 %d 条，产物在 build/' % total)
     return 0
 

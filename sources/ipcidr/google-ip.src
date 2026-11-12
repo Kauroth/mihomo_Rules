@@ -1,0 +1,3 @@
+# Google 官方公布的网段（含 Googlebot、Cloud）
+json:https://www.gstatic.com/ipranges/goog.json|prefixes[].ipv4Prefix
+json:https://www.gstatic.com/ipranges/goog.json|prefixes[].ipv6Prefix
