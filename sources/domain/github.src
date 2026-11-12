@@ -1,0 +1,3 @@
+# GitHub（上游 data:github，58 条，含 include: 会递归展开）
+# 下载域名 objects.githubusercontent.com 在主配置里单独指向德国
+data:github

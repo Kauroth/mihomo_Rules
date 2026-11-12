@@ -1,0 +1,3 @@
+# Google 全家桶（上游 data:google，662 条，其中 @cn 112 条）
+# 只要海外部分就改成: data:google @-cn（国内那半已有 google-cn）
+data:google
