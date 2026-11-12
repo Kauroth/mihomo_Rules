@@ -1,0 +1,58 @@
+# 把这段并进 mihomo 主配置（太极-final.yaml），Kauroth/mihomo_Rules 换成你自己的
+# 集合名（fakeip-filter-extra 等）要和 dist 分支里的文件名一致
+
+rule-providers:
+  # ---- 自建：fake-ip 例外（用在 dns.fake-ip-filter 里）----
+  my-fakeip:
+    type: http
+    behavior: domain
+    format: mrs                 # 想直接吃文本就改成 text，url 后接 .txt
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/fakeip-filter-extra.mrs"
+    path: ./ruleset/my-fakeip.mrs
+    interval: 86400
+    proxy: DIRECT               # 要走代理才能下载时，填策略组名，例如 节点选择
+
+  # ---- 自建：实测国内 CDN，必须直连（放在别人的 proxy/geolocation-!cn 之前）----
+  my-cn-cdn:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/cn-cdn-extra.mrs"
+    path: ./ruleset/my-cn-cdn.mrs
+    interval: 86400
+    proxy: DIRECT
+
+  # ---- 自建：内网 / 组播 / Apple 推送段 ----
+  my-private-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/ipcidr/private-extra.mrs"
+    path: ./ruleset/my-private-ip.mrs
+    interval: 86400
+    proxy: DIRECT
+
+# ------------------------------------------------------------------
+# 然后：
+# 1) dns.fake-ip-filter 里加一条（放在 DustinWin 的 RULE-SET,fakeip-filter,real-ip 之后）
+#    - RULE-SET,my-fakeip,real-ip
+#
+# 2) rules 里，替换掉原来手写的那几段 DOMAIN-SUFFIX / IP-CIDR：
+#    - RULE-SET,my-private-ip,DIRECT,no-resolve      # 放在规则最前面
+#    - RULE-SET,my-cn-cdn,DIRECT                     # 放在 GEOSITE,apple / GEOSITE,microsoft 之前
+#
+# 3) 拉取失败时的兜底（可选，mihomo >= v1.19.6）：provider 里再写一段
+#    payload:
+#      - '+.swcdn.apple.com'
+#      - '+.download.windowsupdate.com'
+#
+# 4) 只想塞几个域名、不值得进仓库：用内联 provider（mihomo >= v1.19.1）
+#    rule-providers:
+#      my-inline:
+#        type: inline
+#        behavior: domain
+#        payload:
+#          - '+.mesu.apple.com'
+#          - '+.ccmdls.adobe.com'
+#    rules:
+#      - RULE-SET,my-inline,DIRECT

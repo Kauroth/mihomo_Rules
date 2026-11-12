@@ -1,0 +1,6 @@
+dist/
+.tools/
+mihomo
+mihomo.exe
+*.gz
+*.zip

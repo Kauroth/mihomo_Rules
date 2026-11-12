@@ -1,0 +1,36 @@
+# 实测有国内 CDN、必须直连的海外厂商域名（behavior: domain）
+# 这一组要在别人的 proxy / geolocation-!cn 集合【之前】命中，
+# 否则会被 +.apple.com / +.microsoft.com 这类父域判去代理。
+# 依据：逐个域名实测解析落点与延迟（7~31ms 判国内 CDN；200ms+ 判境外）。
+
+# ---------- Apple：实测走国内 CDN ----------
++.swcdn.apple.com
++.swdist.apple.com
++.updates.cdn-apple.com
++.appldnld.apple.com
++.iosapps.itunes.apple.com
++.osxapps.itunes.apple.com
++.mesu.apple.com
++.itunes.apple.com
++.support.apple.com
++.app-site-association.cdn-apple.com
++.cdn-apple.com
++.mzstatic.com
++.icloud.com.cn
+
+# ---------- Microsoft：Windows Update / 商店 / Bing ----------
++.download.windowsupdate.com
++.dl.delivery.mp.microsoft.com
++.officecdn.microsoft.com
++cn.bing.com
+
+# ---------- 驱动 / 开发工具 ----------
++.drivers.amd.com
++.download.visualstudio.microsoft.com
++.ccmdls.adobe.com
+
+# ---------- 国内 CDN 加速的下载域名 ----------
++.steamcontent.com
++.steamstatic.com
++.steamcdn-a.akamaihd.net
++.steampowered.com

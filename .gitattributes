@@ -1,0 +1,4 @@
+# 统一行尾：Windows 编辑后别把 shell 脚本写成 CRLF，否则 CI 里 bash 会报错
+* text=auto eol=lf
+*.mrs binary
+*.dat binary
