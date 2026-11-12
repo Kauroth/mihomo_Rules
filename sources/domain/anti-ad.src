@@ -1,0 +1,6 @@
+# anti-AD 主列表（10.9 万条），可选。
+# 体积代价：文本约 2 MB / mrs 约 1 MB —— 只在意精简的话，删掉这一行、
+# 只留上面的 ads（v2fly category-ads-all，909 条）即可。
+# 用 raw.githubusercontent 拉：2 MB 左右的文件在这边的网络下 curl 容易超时，
+# 但本脚本用 urllib 拉是稳的（实测 2.1 MB / 25 秒）。
+url:https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-domains.txt

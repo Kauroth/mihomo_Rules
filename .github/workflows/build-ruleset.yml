@@ -5,8 +5,12 @@ on:
     branches: [Kauroth]      # 注意：这个仓库的默认分支名是 Kauroth，不是 main
     paths:
       - 'rules/**'
+      - 'sources/**'
       - 'scripts/**'
       - '.github/workflows/build-ruleset.yml'
+  schedule:
+    - cron: '0 3 * * *'      # 每天 03:00 北京时间，与上游构建时间对齐
+      timezone: 'Asia/Shanghai'
   workflow_dispatch:
 
 permissions:
@@ -29,6 +33,9 @@ jobs:
           gunzip -f mihomo.gz
           chmod +x mihomo
           ./mihomo -v
+
+      - name: 按 sources/ 拉取上游并归一化
+        run: python3 scripts/fetch-sources.py
 
       - name: 编译规则集（非法行会让整个构建失败）
         env:

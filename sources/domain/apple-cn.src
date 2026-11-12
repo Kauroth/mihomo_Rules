@@ -1,0 +1,3 @@
+# 属性过滤：只要 v2fly 标了 @cn 的（国内有接入点）
+v2fly:apple @cn
+file:rules/domain/cn-cdn-extra.txt

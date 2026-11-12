@@ -5,13 +5,19 @@
 ## 目录
 
 ```
-rules/domain/*.txt      behavior: domain   —— 一行一个域名
-rules/ipcidr/*.txt      behavior: ipcidr   —— 一行一个 CIDR
+sources/domain/*.src    声明式来源清单 —— 一行一个上游，生成 build/domain/<分类名>.txt
+sources/ipcidr/*.src    同上（ipcidr）
+rules/domain/*.txt      手写补丁，behavior: domain   —— 一行一个域名
+rules/ipcidr/*.txt      手写补丁，behavior: ipcidr   —— 一行一个 CIDR
+scripts/fetch-sources.py 按 sources/ 拉上游、归一化、去冗余 → build/（零依赖）
 scripts/build.sh        CI 用（Ubuntu / bash）
 scripts/build.ps1       本地用（Windows / PowerShell）
+scripts/dump-geosite.py 零依赖 geosite.dat 解析器（核对分类清单与 @cn 属性）
+docs/roadmap.md         架构决策与后续路线
 config-snippet.yaml     贴进 mihomo 主配置的 rule-providers 片段
-.github/workflows/      编译 + 发布到 dist 分支
-dist/                   构建产物（不入库，CI 自动推到 dist 分支）
+.github/workflows/      拉取 + 编译 + 发布到 dist 分支（每天 03:00 也会自己跑）
+build/                  fetch-sources.py 的产物（不入库）
+dist/                   编译产物（不入库，CI 自动推到 dist 分支）
 ```
 
 ## 文件内容规范（mihomo v1.19.12 实测，不是抄文档）
@@ -55,6 +61,40 @@ PROCESS-NAME,qbittorrent.exe
 ```
 
 代价是逐条匹配，比 domain / ipcidr 慢，只在必须混装时才用（实测 `DOMAIN` / `DOMAIN-SUFFIX` / `DOMAIN-KEYWORD` 三种在 text 列表里都正常命中）。
+
+## 自动补全与分类整合：`sources/`
+
+`rules/` 里是手写的「例外补丁」（量小、要盯）；大块分类不手写，由
+`sources/<behavior>/<分类名>.src` 声明，`scripts/fetch-sources.py` 拉取上游、归一化、去冗余，
+生成 `build/<behavior>/<分类名>.txt`。**分类名就是文件名** —— 这就是「整合凌乱分类」的全部机制，
+不需要动任何上游。
+
+来源行语法直接沿用 v2fly/domain-list-community 的语义（学一套就够）：
+
+```
+v2fly:telegram                  # v2fly data/telegram，自动递归解析 include:
+v2fly:apple @cn                 # 只要带 @cn 属性的；@-ads 是排除语义
+url:https://.../OpenAI.list     # 远端 Clash 格式 list，或一行一个域名的纯文本
+file:rules/domain/xxx.txt       # 本地文件
+```
+
+两个自动化能力都是 v2fly 数据自带的：
+
+- **补全**：v2fly 有 `telegram` / `twitter` / `instagram` / `facebook` / `tiktok` 这些单平台分类，
+  那家 geosite.dat 里没有（它的源是 Clash `.list`，语法上表达不了）—— 引一下就有了。
+- **整合**：`@cn` 属性把「国内有接入点」的域名单独切出来。`v2fly:geolocation-!cn @-cn`
+  拿到的是**剔掉了国内可直连域名**的国外域名集合，比 `geosite:geolocation-!cn` 干净，
+  也就不会再出现「被 8.8.8.8 解析到海外边缘节点之后 DIRECT」那类问题。
+
+归一化做两件事：dlc 的 `domain:` → `+.x`（含自身与所有子域），`full:` → `x`（精确）；
+然后再把已被 `+.x` 覆盖的条目删掉（`proxy` 从 26732 条压到 23703 条）。
+
+keyword / regexp 进不了 `behavior: domain`（没有对应语法），会另存
+`build/classical/<分类名>.list`，需要的人用 classical provider 引。
+
+> ⚠️ `mihomo convert-ruleset classical text` 在 v1.19.25 上**必 panic**
+> （`classical_strategy.go:57` nil 解引用），而且 **panic 之后退出码仍然是 0**。
+> 所以 classical 只出文本、不出 mrs；两个构建脚本都把 `panic` 和 `invalid` 一起 grep 了。
 
 ## 本地构建（Windows）
 

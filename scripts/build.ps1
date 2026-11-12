@@ -40,24 +40,59 @@ if (-not $core -or -not (Test-Path $core)) {
 }
 
 Remove-Item $Dist -Recurse -Force -ErrorAction SilentlyContinue
+$Tmp = Join-Path $Root '.tmp'
+Remove-Item $Tmp -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path $Tmp | Out-Null
 
-foreach ($behavior in @('domain', 'ipcidr')) {
-    $src = Join-Path $Root "rules\$behavior"
-    if (-not (Test-Path $src)) { continue }
-    $dst = Join-Path $Dist $behavior
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+
+function Invoke-Compile {
+    param([string]$Behavior, [string]$Name, [string]$InputFile, [string]$Keep)
+    $dst = Join-Path $Dist $Behavior
     New-Item -ItemType Directory -Force -Path $dst | Out-Null
+    $out = Join-Path $dst "$Name.mrs"
+    $log = & $core convert-ruleset $Behavior text $InputFile $out 2>&1
+    if ("$log" -match 'invalid' -or "$log" -match 'panic') {
+        Write-Host "!! $Behavior/$Name 构建异常：" -ForegroundColor Red
+        $log | ForEach-Object { Write-Host "   $_" }
+        $script:fail = $true
+    }
+    if ($Keep) { Copy-Item $InputFile (Join-Path $dst "$Name.$Keep") -Force }
+    '{0,-28} {1,8} N B (mrs)' -f "$Behavior/$Name", (Get-Item $out).Length
+}
 
-    Get-ChildItem $src -Filter *.txt | ForEach-Object {
-        $name = $_.BaseName
-        $out  = Join-Path $dst "$name.mrs"
-        $log  = & $core convert-ruleset $behavior text $_.FullName $out 2>&1
-        if ("$log" -match 'invalid') {
-            Write-Host "!! $($_.Name) 含非法行：" -ForegroundColor Red
-            $log | ForEach-Object { Write-Host "   $_" }
-            $script:fail = $true
+# build/ 是 fetch-sources.py 生成的，rules/ 是手写补丁；同名就合并（build 在前，rules 追加）
+foreach ($behavior in @('domain', 'ipcidr')) {
+    $dirs = @((Join-Path $Root "build\$behavior"), (Join-Path $Root "rules\$behavior"))
+    $names = [System.Collections.Generic.SortedSet[string]]::new()
+    foreach ($d in $dirs) {
+        if (-not (Test-Path $d)) { continue }
+        Get-ChildItem $d -Filter *.txt | ForEach-Object { [void]$names.Add($_.BaseName) }
+    }
+    foreach ($name in $names) {
+        $parts = @()
+        foreach ($d in $dirs) {
+            $f = Join-Path $d "$name.txt"
+            if (Test-Path $f) { $parts += (Get-Content $f -Raw) }
         }
-        Copy-Item $_.FullName (Join-Path $dst "$name.txt") -Force
-        '{0,-28} {1,8} B (mrs)' -f "$behavior/$name", (Get-Item $out).Length
+        if (-not $parts) { continue }
+        $merged = Join-Path $Tmp "$name.txt"
+        [IO.File]::WriteAllText($merged, ($parts -join "`n"), $utf8)
+        Invoke-Compile -Behavior $behavior -Name $name -InputFile $merged -Keep 'txt'
+    }
+}
+
+# classical：装 domain 规则集装不下的东西（keyword / regexp / 进程名）
+# 只出文本 —— mihomo v1.19.25 的 `convert-ruleset classical text` 必 panic
+# （classical_strategy.go:57 nil 解引用），而且 panic 后退出码仍是 0。
+# 文本版客户端直接用 `format: text` 读，行为一致。
+$cls = Join-Path $Root 'build\classical'
+if (Test-Path $cls) {
+    $dst = Join-Path $Dist 'classical'
+    New-Item -ItemType Directory -Force -Path $dst | Out-Null
+    Get-ChildItem $cls -Filter *.list | ForEach-Object {
+        Copy-Item $_.FullName (Join-Path $dst $_.Name) -Force
+        '{0,-28} {1,8} N B (list, 不出 mrs)' -f "classical/$($_.BaseName)", $_.Length
     }
 }
 
