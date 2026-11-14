@@ -22,6 +22,8 @@ jobs:
     env:
       # 建议不超过你客户端内核的版本
       MIHOMO_TAG: v1.19.34
+      SINGBOX_TAG: v1.14.4
+
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +35,16 @@ jobs:
           gunzip -f mihomo.gz
           chmod +x mihomo
           ./mihomo -v
+
+      - name: 下载 sing-box 内核
+        run: |
+          set -euo pipefail
+          v="${SINGBOX_TAG#v}"
+          url="https://github.com/SagerNet/sing-box/releases/download/${SINGBOX_TAG}/sing-box-${v}-linux-amd64.tar.gz"
+          curl -fsSL -o sing-box.tar.gz "$url"
+          tar -xzf sing-box.tar.gz
+          install -m755 "sing-box-${v}-linux-amd64/sing-box" ./sing-box
+          ./sing-box version
 
       - name: 按 sources/ 拉取上游并归一化
         run: python3 scripts/fetch-sources.py
@@ -65,6 +77,20 @@ jobs:
         env:
           MIHOMO: ./mihomo
         run: bash scripts/build.sh
+
+      # 必须放在 build.sh 之后：build.sh 开头会 rm -rf dist/，先跑会被清掉。
+      # 同一份文本再出一套 sing-box 的 rule-set，语义一比一对应，不退化成 regex。
+      - name: 编译 sing-box 规则集
+        env:
+          SINGBOX: ./sing-box
+        run: python3 scripts/build-singbox.py
+
+      # 条数环比只证明「产物没缩水」，这一步证明「规则真的能命中」。
+      # 覆盖 +.x / x / CIDR 三种映射，用 sing-box 自己的匹配器验，失败就不发布。
+      - name: 命中回归（sing-box 匹配语义）
+        env:
+          SINGBOX: ./sing-box
+        run: python3 scripts/check-hit.py
 
       - name: 发布到 dist 分支
         run: |

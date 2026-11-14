@@ -32,19 +32,25 @@
 - 一手源自采：`rir:`（RIR 委派记录）/ `asnfile:`（iptoasn 离线表）/ `ct:`（CT 日志）三个前缀，
   IP 侧不再依赖 ispip、gaoyifan 这类第三方聚合；`!opt` 标记让交叉源挂了也不影响构建
 - 平台 IP 段：现在 9 个 ipcidr 分类，netflix / facebook / oracle / steam 都按 AS 反查
-- 质量守门（前两项）：条数环比（突降突增都拦）+ 属性回归（`@属性` 过滤失效就拦），
-  见 `scripts/check-regression.py`；基准存 `baseline.json`，只有全部通过才更新
+- 质量守门（三项全做完）：条数环比（突降突增都拦）+ 属性回归（`@属性` 过滤失效就拦）
+  + 命中回归（用 `sing-box rule-set match` 抽样验证匹配语义）；见 `scripts/check-regression.py`
+  和 `scripts/check-hit.py`。基准存 `baseline.json`，只有全部通过才更新
 - 上游快照：每次构建把 `.cache/` 打包成 artifact 留 14 天，带 MANIFEST 可还原
+- sing-box 输出：同一份文本出 `.srs` + `.json`，`+.x` / `x` / CIDR 一一映射到
+  `domain_suffix` / `domain` / `ip_cidr`，不用退化成 regex；keyword / regexp 也合并进同一个
+  rule-set（mihomo 那边只能另存 classical）
 
 ## 待做
-
-**sing-box 输出。** 同一份文本再编译一份 `.json` + `.srs`。麻烦的地方在语义映射：`.x`（仅子域）和 `*.x`（仅一级子域）在 sing-box 里没有对应写法，只能退化成 regex。所以有个前置约束——本仓库的 domain 列表只允许写 `x` 和 `+.x` 两种形式，其余禁用，用构建脚本强制。这样两个内核的行为才对得上。
-
-**命中回归。** 固定一批测试域名（各分类各挑几个，带正反例），编译后用 mihomo 实跑一遍断言命中。
-比条数环比更贴近实际效果——条数没变但规则写错了，只有这个能发现。sing-box 那半等它有产出了再说。
 
 **`ct:` 的实际增益。** 目前 `ct:` 对产物是零贡献：枚举出的子域全被已有的 `+.主域` 吸收了
 （openai 实测 188 条，净增 0）。它真正能发力的场景是「v2fly 没有对应分类」或
 「服务域挂在不同顶级域下」，得先找到这样的分类才有意义。按组织名查（crt.sh 的 `?O=`）
 可能是个方向，但 crt.sh 对这类查询不稳定，还没验证。
+
+**domain 覆盖度补齐。** 之前实测过，`cn` 分类只有 6,265 条（纯 v2fly 社区版），
+而 DustinWin 那份是 109,724 条（v2fly + felixonmars 的国内加速域名表 + blackmatrix7/China）。
+国内域名走代理的风险主要在这里，不在 IP 侧（IP 侧自采后对照权威列表只漏 0.005%）。
+补法见 README 的 sources 说明，用 `url:` 引 `Loyalsoldier/clash-rules@release/direct.txt`。
+注意别加 `tld-not-cn.txt` —— 那是 829 条顶级域名规则，会把所有 `.io` / `.me` 域名
+（含国内的）判成国外。
 

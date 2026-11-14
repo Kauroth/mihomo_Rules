@@ -93,9 +93,48 @@ example.com  精确命中
 
 试过用「首标签像随机串」的启发式自动兜那些随机域名，误杀太重就撤了：`appldnld.apple.com`、`360buyimg.com`、`17173cdn.com`、`51jobcdn.com` 这类数字前缀加缩写在国内域名里到处都是。所以现在只留关键词规则，每条都能解释、能 review。要查某条关键词误伤了谁，用 `scripts/check-keywords.py`；要看 junk 是被哪条规则抓的，用 `scripts/check-junk.py`。
 
+## sing-box 输出
+
+同一份文本还会出一套 sing-box 的 rule-set（`dist/singbox/`）。语义和 mihomo 那边严格对齐，**不用退化成 regex**：
+
+| 本仓库写法 | mihomo | sing-box |
+|---|---|---|
+| `+.x` | `+.x`，命中 x 自身和所有子域 | `{"domain_suffix": ["x"]}` |
+| `x` | 只命中 x | `{"domain": ["x"]}` |
+| `CIDR` | `IP-CIDR` | `{"ip_cidr": [...]}` |
+| `DOMAIN-KEYWORD` / `DOMAIN-REGEX` | 另存 `classical/` | `domain_keyword` / `domain_regex` |
+
+已用 `sing-box rule-set match` 逐条实测确认：`domain_suffix: "a.com"` 命中 `a.com`、`x.a.com`、`x.y.a.com`，不命中 `nota.com`；`domain: "a.com"` 只命中 `a.com`。所以两个内核的匹配行为是一致的。
+
+**为什么强制只允许 `x` 和 `+.x` 两种写法**：sing-box 没有 `.x`（仅子域）和 `*.x`（仅一级子域）的对应语法，一旦出现就只能退化成 regex，两个内核的行为立刻对不上。转换脚本会直接拦下别的写法让构建失败，而不是悄悄转错。
+
+sing-box 这边还比 mihomo 少一个坑：mihomo 的 `behavior: domain` 装不下 keyword / regexp，只能另存 `classical/` 让人自己引；sing-box 有 `domain_keyword` / `domain_regex` 字段，所以转换时直接合并进同一个 `.srs`，客户端引一个文件就够了。
+
+客户端配置：
+
+```json
+{
+  "route": {
+    "rule_set": [
+      {
+        "tag": "cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/singbox/domain/cn.srs",
+        "update_interval": "1d"
+      }
+    ]
+  }
+}
+```
+
+`format: binary` 读 `.srs`；想直接吃文本就换成 `format: source` 并指向同目录的 `.json`（体积大些，但能直接看）。rule-set 版本默认 **3**（= sing-box 1.11+），客户端更旧就在 workflow 里改 `SINGBOX_RULESET_VERSION`。
+
 ## 构建门禁
 
-构建成功不等于数据是对的。上游改格式、把 `@cn` 标注丢了、或者某个源被 `!opt` 跳过，产出的规则集看起来都正常，但内容已经缩水了。所以 CI 里加了一道环比断言（`scripts/check-regression.py`）：
+构建成功不等于数据是对的。上游改格式、把 `@cn` 标注丢了、或者某个源被 `!opt` 跳过，产出的规则集看起来都正常，但内容已经缩水了。所以 CI 里加了两道断言：
+
+**`scripts/check-regression.py`——环比检查**
 
 | 情况 | 判据 |
 |---|---|
@@ -104,7 +143,13 @@ example.com  精确命中
 | 属性退化 | 基准里过滤掉了一批 `@属性` 条目，这次一条都没过滤 —— 上游把属性标注丢了 |
 | 分类缺失 / 构建失败 | 直接拦住 |
 
-拦住就不发布，`dist` 停在上一版，客户端不受影响。确认是上游的合理变化后，本地跑 `python3 scripts/check-regression.py --update` 重建基准并提交。阈值在脚本顶部常量里，误报就调，别绕过。
+**`scripts/check-hit.py`——命中回归**
+
+条数环比只证明「产物没缩水」，不证明「规则写得对」。这一步拿真实产物喂 `sing-box rule-set match`，每个分类抽样断言三种映射：`+.x` 必须命中自身和子域、`x` 必须命中且不命中子域、CIDR 必须命中段内地址且不命中 TEST-NET 段。样本直接从 `build/` 的源文本里取，和产物同源 —— 通不过就是转换或编译出了问题。
+
+（mihomo 那边不需要这套：它的规则集是文本直接喂内核的，没有转换环节。有转换风险的是 sing-box 这一侧。）
+
+两道都过不了就 `dist` 停在上一版，客户端不受影响。确认是上游的合理变化后，本地跑 `python3 scripts/check-regression.py --update` 重建基准并提交。阈值在脚本顶部常量里，误报就调，别绕过。
 
 ## 上游快照
 
