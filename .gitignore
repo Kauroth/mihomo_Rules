@@ -7,3 +7,4 @@ mihomo
 mihomo.exe
 *.gz
 *.zip
+__pycache__/

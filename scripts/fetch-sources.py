@@ -20,8 +20,23 @@
     data:分类名 [@属性]      上游 data 目录，自动递归解析 include
     url:地址                 远端 Clash list，或一行一个域名 / CIDR 的纯文本
     json:地址|选择器         JSON 接口，选择器如 prefixes[].ipv4Prefix / [].ipv4
-    asn:2906                 按 ASN 取该 AS 公布的 IP 段
+    asn:2906                 按 ASN 取该 AS 公布的 IP 段（RIPE Stat 接口）
+    asnfile:2906,40027       按 ASN 从 iptoasn 离线表反查前缀（批量、无限速）
+    asnfile4: / asnfile6:    只要 IPv4 / 只要 IPv6
+    rir:CN                   RIR 官方委派记录里该国全部分配段（默认查 APNIC）
+    rir:CN,all               合并 5 个 RIR 查（更全，但要下 5 个文件）
+    rir4: / rir6:            只要 IPv4 / 只要 IPv6
+    ct:netflix.com           CT 日志枚举该公司真实签过证书的子域（可选 maxdepth=N）
     file:相对路径            仓库里的本地文件
+
+行尾加 `!opt` 表示可选来源：拉不到就跳过并告警，不让整个分类构建失败。
+自主源（rir:/asnfile:/官方接口）不要标，第三方交叉源应该标。
+
+哪些是「一手」的，上游死了也不影响你：
+  rir:     RIR（APNIC/ARIN/RIPE…）的官方分配记录，所有「中国 IP 库」的共同源头
+  asnfile: iptoasn 每日快照，可自建，替代需要逐个请求的 RIPE 接口
+  ct:      证书透明度日志，公司签证书必须记录，无法伪造也无法绕过
+  json:/url: 指向厂商自己公布的网段表（Google/Cloudflare/Microsoft 等）
 
 零依赖（只用标准库），带本地缓存，重复跑不会反复拉上游。
 
@@ -34,10 +49,12 @@ import os
 import re
 import sys
 import json
+import gzip
 import time
 import shutil
 import hashlib
 import pathlib
+import ipaddress
 import urllib.request
 import urllib.error
 
@@ -49,6 +66,22 @@ UA = {'User-Agent': 'mihomo_Rules-fetch/1.0'}
 
 DATA_RAW = 'https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/{}'
 RIPESTAT = 'https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{}'
+
+# RIR 官方委派记录：所有「中国 IP 库」的共同祖先（ispip / gaoyifan / chnroutes2 都派生自它）
+RIR_FILES = {
+    'apnic': 'https://ftp.apnic.net/stats/apnic/delegated-apnic-latest',
+    'arin': 'https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest',
+    'ripencc': 'https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest',
+    'lacnic': 'https://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-latest',
+    'afrinic': 'https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-latest',
+}
+
+# iptoasn：每日更新的 ASN ↔ 前缀离线表，下载一次可无限次反查，不受 API 限速
+IPTOASN_V4 = 'https://iptoasn.com/data/ip2asn-v4.tsv.gz'
+IPTOASN_V6 = 'https://iptoasn.com/data/ip2asn-v6.tsv.gz'
+
+# 证书透明度日志：任何公司签 TLS 证书都必须记录，绕不过去，是一手数据
+CRTSH = 'https://crt.sh/?q=%25.{}&output=json'
 
 # 这些分类本身就在装垃圾，不必再被 exclude 过滤一遍
 EXCLUDE_SKIP = {'ads', 'anti-ad', 'junk'}
@@ -157,26 +190,31 @@ def load_excluder():
     return Excluder(rules)
 
 
-def fetch(url, use_cache=True):
-    """下载并缓存。返回文本；失败抛异常。"""
+def fetch_raw(url, use_cache=True, timeout=30):
+    """下载并缓存原始字节。返回 bytes；失败抛异常。"""
     key = hashlib.sha1(url.encode()).hexdigest()[:16]
     suffix = pathlib.Path(url.split('?')[0]).suffix or '.txt'
     cached = CACHE / (key + suffix)
     if use_cache and cached.exists() and cached.stat().st_size > 0:
-        return cached.read_text('utf-8', 'replace')
+        return cached.read_bytes()
     req = urllib.request.Request(url, headers=UA)
     last = None
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                text = r.read().decode('utf-8', 'replace')
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = r.read()
             CACHE.mkdir(parents=True, exist_ok=True)
-            cached.write_text(text, 'utf-8')
-            return text
+            cached.write_bytes(data)
+            return data
         except Exception as e:                       # noqa: BLE001
             last = e
             time.sleep(1.5 * (attempt + 1))
     raise RuntimeError('拉取失败 %s: %s' % (url, last))
+
+
+def fetch(url, use_cache=True, timeout=30):
+    """下载并缓存。返回文本；失败抛异常。"""
+    return fetch_raw(url, use_cache, timeout).decode('utf-8', 'replace')
 
 
 class Remote:
@@ -318,6 +356,117 @@ def parse_plain_or_clash(text, bare_is_suffix=False):
     return rules, other
 
 
+# ----------------------------------------------------------------- 一手数据源
+
+def parse_rir(text, cc, vers, registry):
+    """解析 RIR 委派记录，取某国家的 IPv4/IPv6 段。
+
+    行格式：registry|cc|type|start|value|date|status[|extensions...]
+      type=ipv4 时 value 是地址数量（256 这种），要换算成前缀长度
+      type=ipv6 时 value 就是前缀长度
+    只收 allocated / assigned，available / reserved 是没分出去的。
+    """
+    cc = cc.upper()
+    out = []
+    for line in text.splitlines():
+        if not line or line.startswith('#'):
+            continue
+        f = line.split('|')
+        if len(f) < 7:
+            continue
+        _reg, country, typ, start, value, _date, status = f[:7]
+        if country.upper() != cc or typ not in vers:
+            continue
+        if status not in ('allocated', 'assigned'):
+            continue
+        if typ == 'ipv4':
+            try:
+                n = int(value)
+            except ValueError:
+                continue
+            if n < 1 or n & (n - 1):        # 不是 2 的幂就没法写成前缀，跳过
+                continue
+            out.append('%s/%d' % (start, 32 - (n.bit_length() - 1)))
+        else:
+            try:
+                plen = int(value)
+            except ValueError:
+                continue
+            if not 0 <= plen <= 128:
+                continue
+            out.append('%s/%d' % (start, plen))
+    return out
+
+
+def parse_ip2asn(text, asns):
+    """从 iptoasn 的 TSV 里切出指定 AS 公布的前缀。
+
+    行格式（tab 分隔）：start_ip  end_ip  AS1234  description  country
+    起止 IP 要合并成最小前缀集合，用 ipaddress 处理最稳。
+    """
+    out = []
+    for line in text.splitlines():
+        f = line.split('\t')
+        if len(f) < 3 or f[2] not in asns:
+            continue
+        try:
+            a = ipaddress.ip_address(f[0].strip())
+            b = ipaddress.ip_address(f[1].strip())
+        except ValueError:
+            continue
+        if a.version != b.version:
+            continue
+        try:
+            out += [str(n) for n in ipaddress.summarize_address_range(a, b)]
+        except (ValueError, TypeError):
+            continue
+    return out
+
+
+# 内部用途的标签，命中就丢掉：CT 日志里塞满了 test/dev/staging 这类不该进分流规则的域名
+CT_INTERNAL = re.compile(
+    r'(^|[.\-_])'
+    r'(test|tests|testing|dev|devel|develop|development|staging|stage|stg|preprod|preview|'
+    r'sandbox|qa|uat|internal|intranet|corp|local|localhost|jenkins|jira|confluence|'
+    r'nagios|grafana|kibana|prometheus|vault|consul)'
+    r'([.\-_]|$)', re.I)
+CT_HOST = re.compile(r'^[a-z0-9][a-z0-9.\-]*\.[a-z]{2,}$')
+
+
+def parse_ct(text, domain, maxdepth=2):
+    """解析 crt.sh 的 JSON，枚举该域名下真实签发过证书的子域。
+
+    maxdepth 是相对层数：maxdepth=2 时，a.b.netflix.com 收，a.b.c.netflix.com 不收。
+    """
+    domain = domain.strip().lower().lstrip('.').rstrip('.')
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return []
+    if not isinstance(data, list):
+        return []
+    base = domain.count('.')
+    names = set()
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        for field in ('name_value', 'common_name'):
+            for name in str(entry.get(field) or '').split('\n'):
+                n = name.strip().lower().rstrip('.')
+                if n.startswith('*.'):
+                    n = n[2:]
+                if not n or n == domain or not CT_HOST.match(n):
+                    continue
+                if not n.endswith('.' + domain):
+                    continue
+                if n.count('.') - base > maxdepth:
+                    continue
+                if CT_INTERNAL.search(n):
+                    continue
+                names.add(n)
+    return sorted(names)
+
+
 # ----------------------------------------------------------------- 归一化
 
 def normalize(rules):
@@ -354,28 +503,51 @@ def normalize(rules):
 # ----------------------------------------------------------------- 主流程
 
 def read_sources(path):
-    """返回 [(kind, spec, want, deny)]"""
+    """返回 [(kind, spec, want, deny, optional)]
+
+    行尾的 `!opt` 表示「可选来源」：拉不到就跳过并告警，不让整个分类构建失败。
+    用在第三方交叉源上——自主源必须成功，别人的源挂了不该拖垮你。
+    """
     items = []
     for raw in path.read_text('utf-8').splitlines():
         line = raw.split('#', 1)[0].strip()
         if not line:
             continue
         parts = line.split()
-        spec, rest = parts[0], parts[1:]
+        spec, optional, rest = parts[0], False, []
+        for t in parts[1:]:
+            if t == '!opt':
+                optional = True
+            else:
+                rest.append(t)
         want, deny = parse_attr_filter(rest)
         if spec.startswith('data:'):
-            items.append(('data', spec[len('data:'):], want, deny))
+            items.append(('data', spec[len('data:'):], want, deny, optional))
         elif spec.startswith('url:'):
-            items.append(('url', spec[len('url:'):], want, deny))
+            items.append(('url', spec[len('url:'):], want, deny, optional))
         elif spec.startswith('json:'):
             url, _, sel = spec[len('json:'):].partition('|')
             if not sel:
                 raise RuntimeError('json: 需要选择器，例如 json:https://x/y.json|a[].b')
-            items.append(('json', (url, sel), want, deny))
+            items.append(('json', (url, sel), want, deny, optional))
+        elif spec.startswith('asnfile:'):
+            items.append(('asnfile', (spec[len('asnfile:'):], ('ipv4', 'ipv6')), want, deny, optional))
+        elif spec.startswith('asnfile4:'):
+            items.append(('asnfile', (spec[len('asnfile4:'):], ('ipv4',)), want, deny, optional))
+        elif spec.startswith('asnfile6:'):
+            items.append(('asnfile', (spec[len('asnfile6:'):], ('ipv6',)), want, deny, optional))
         elif spec.startswith('asn:'):
-            items.append(('asn', spec[len('asn:'):].lstrip('AS'), want, deny))
+            items.append(('asn', spec[len('asn:'):].lstrip('AS'), want, deny, optional))
+        elif spec.startswith('rir:'):
+            items.append(('rir', (spec[len('rir:'):], ('ipv4', 'ipv6')), want, deny, optional))
+        elif spec.startswith('rir4:'):
+            items.append(('rir', (spec[len('rir4:'):], ('ipv4',)), want, deny, optional))
+        elif spec.startswith('rir6:'):
+            items.append(('rir', (spec[len('rir6:'):], ('ipv6',)), want, deny, optional))
+        elif spec.startswith('ct:'):
+            items.append(('ct', spec[len('ct:'):], want, deny, optional))
         elif spec.startswith('file:'):
-            items.append(('file', spec[len('file:'):], want, deny))
+            items.append(('file', spec[len('file:'):], want, deny, optional))
         else:
             raise RuntimeError('%s: 不认识的来源 %r' % (path.name, spec))
     return items
@@ -383,43 +555,101 @@ def read_sources(path):
 
 def build_one(name, behavior, src_file, remote, use_cache, excluder, junk):
     all_rules, extra, stats = [], [], []
-    for kind, spec, want, deny in read_sources(src_file):
-        if kind == 'data':
-            rules, skipped = parse_dlc(remote.raw(spec), remote, want, deny, (spec,))
-            stats.append('data:%s%s=%d%s' % (spec, ''.join(' @' + a for a in sorted(want)),
-                                              len(rules),
-                                              ' (+%d过滤)' % skipped if skipped else ''))
-        elif kind == 'url':
-            text = fetch(spec, use_cache)
-            rules, other = parse_plain_or_clash(text, bare_is_suffix=True)
-            extra += other
-            stats.append('url:%s=%d' % (spec.split('/')[-1], len(rules)))
-        elif kind == 'json':
-            url, sel = spec
-            data = json.loads(fetch(url, use_cache))
-            found = jsonpath(data, sel)
-            rules = []
-            for v in found:
-                if CIDR_RE.fullmatch(v.strip()):
-                    extra.append('IP-CIDR,%s' % v.strip())
-                else:
-                    rules.append(('domain', v, frozenset()))
-            stats.append('json:%s#%s=%d' % (url.split('/')[-1][:22], sel, len(found)))
-        elif kind == 'asn':
-            data = json.loads(fetch(RIPESTAT.format(spec), use_cache))
-            found = jsonpath(data, 'data.prefixes[].prefix')
-            rules = []
-            for v in found:
-                if CIDR_RE.fullmatch(v.strip()):
-                    extra.append('IP-CIDR,%s' % v.strip())
-                else:
-                    rules.append(('domain', v, frozenset()))
-            stats.append('asn:AS%s=%d' % (spec, len(found)))
-        else:
-            text = (ROOT / spec).read_text('utf-8', 'replace')
-            rules, other = parse_plain_or_clash(text)
-            extra += other
-            stats.append('file:%s=%d' % (spec, len(rules)))
+    for kind, spec, want, deny, optional in read_sources(src_file):
+        rules, other, note = [], [], ''
+        try:
+            if kind == 'data':
+                rules, skipped = parse_dlc(remote.raw(spec), remote, want, deny, (spec,))
+                note = 'data:%s%s=%d%s' % (spec, ''.join(' @' + a for a in sorted(want)),
+                                           len(rules),
+                                           ' (+%d过滤)' % skipped if skipped else '')
+            elif kind == 'url':
+                text = fetch(spec, use_cache)
+                rules, other = parse_plain_or_clash(text, bare_is_suffix=True)
+                note = 'url:%s=%d' % (spec.split('/')[-1], len(rules))
+            elif kind == 'json':
+                url, sel = spec
+                data = json.loads(fetch(url, use_cache))
+                found = jsonpath(data, sel)
+                for v in found:
+                    if CIDR_RE.fullmatch(v.strip()):
+                        other.append('IP-CIDR,%s' % v.strip())
+                    else:
+                        rules.append(('domain', v, frozenset()))
+                note = 'json:%s#%s=%d' % (url.split('/')[-1][:22], sel, len(found))
+            elif kind == 'asn':
+                data = json.loads(fetch(RIPESTAT.format(spec), use_cache))
+                found = jsonpath(data, 'data.prefixes[].prefix')
+                for v in found:
+                    if CIDR_RE.fullmatch(v.strip()):
+                        other.append('IP-CIDR,%s' % v.strip())
+                    else:
+                        rules.append(('domain', v, frozenset()))
+                note = 'asn:AS%s=%d' % (spec, len(found))
+            elif kind == 'rir':
+                cc, vers = spec
+                all_rirs = cc.lower().endswith(',all')
+                if all_rirs:
+                    cc = cc[:-len(',all')]
+                srcs = list(RIR_FILES.items()) if all_rirs else [('apnic', RIR_FILES['apnic'])]
+                found, failed = [], []
+                for reg, url in srcs:
+                    try:
+                        found += parse_rir(fetch(url, use_cache, timeout=180), cc, vers, reg)
+                    except Exception as e:                      # noqa: BLE001
+                        failed.append('%s(%s)' % (reg, e))
+                if not found:
+                    raise RuntimeError('rir:%s 全部失败: %s' % (cc, '; '.join(failed)))
+                found = sorted(set(found))
+                other += ['IP-CIDR,%s' % v for v in found]
+                note = 'rir:%s %s=%d%s' % (cc, '+'.join(vers), len(found),
+                                           ' [!%s]' % ','.join(failed) if failed else '')
+            elif kind == 'asnfile':
+                asns, vers = spec
+                wanted_as = {'AS' + a.strip().lstrip('AS') for a in asns.split(',') if a.strip()}
+                if not wanted_as:
+                    raise RuntimeError('asnfile: 没写 AS 号')
+                found, failed = [], []
+                for ver, url in (('ipv4', IPTOASN_V4), ('ipv6', IPTOASN_V6)):
+                    if ver not in vers:
+                        continue
+                    try:
+                        raw = fetch_raw(url, use_cache, timeout=300)
+                        try:
+                            text = gzip.decompress(raw).decode('utf-8', 'replace')
+                        except OSError:
+                            text = raw.decode('utf-8', 'replace')
+                        found += parse_ip2asn(text, wanted_as)
+                    except Exception as e:                      # noqa: BLE001
+                        failed.append('%s(%s)' % (ver, e))
+                if not found:
+                    raise RuntimeError('asnfile 全部失败: %s' % '; '.join(failed))
+                found = sorted(set(found))
+                other += ['IP-CIDR,%s' % v for v in found]
+                note = 'asnfile:%s=%d%s' % (','.join(sorted(wanted_as)), len(found),
+                                            ' [!%s]' % ','.join(failed) if failed else '')
+            elif kind == 'ct':
+                domain, _, params = spec.partition(',')
+                maxdepth = 2
+                for p in params.split(','):
+                    if p.startswith('maxdepth='):
+                        maxdepth = int(p.split('=', 1)[1])
+                found = parse_ct(fetch(CRTSH.format(domain), use_cache, timeout=180),
+                                 domain, maxdepth)
+                rules = [('domain', v, frozenset()) for v in found]
+                note = 'ct:%s=%d' % (domain, len(found))
+            else:
+                text = (ROOT / spec).read_text('utf-8', 'replace')
+                rules, other = parse_plain_or_clash(text)
+                note = 'file:%s=%d' % (spec, len(rules))
+        except Exception as e:                                # noqa: BLE001
+            if optional:
+                print('   ! 可选来源跳过（%s）：%s' % (kind, e))
+                stats.append('%s:跳过' % kind)
+                continue
+            raise
+        extra += other
+        stats.append(note)
         all_rules += rules
 
     exact, suffix, keyword, regexp = normalize(all_rules)

@@ -33,11 +33,36 @@ data:telegram                  # 上游 data 目录里的 telegram，自动递�
 data:apple @cn                 # 只要带 @cn 属性的；@-ads 是排除
 url:https://.../OpenAI.list    # 远端 Clash 格式 list，或一行一个域名或 CIDR 的纯文本
 json:https://.../goog.json|prefixes[].ipv4Prefix   # JSON 接口，| 后面是取值路径
-asn:2906                       # 按 ASN 取该 AS 公布的所有前缀
+asn:2906                       # 按 ASN 取该 AS 公布的所有前缀（RIPE Stat 接口）
+asnfile:2906,40027             # 按 ASN 从 iptoasn 离线表反查（批量、不受接口限速）
+rir:CN                         # RIR 官方委派记录里该国的全部分配段
+ct:netflix.com                 # CT 日志枚举该公司真实签过证书的子域
 file:rules/domain/xxx.txt      # 本地文件
 ```
 
-`json:` 的取值路径用 `.` 分隔字段，`[]` 表示展开数组，顶层就是数组时写 `[].ips`。`asn:` 走 RIPE 的接口，一次一个 AS。
+`json:` 的取值路径用 `.` 分隔字段，`[]` 表示展开数组，顶层就是数组时写 `[].ips`。`asn:` 走 RIPE 的接口，一次一个 AS；`asnfile:` 把整张 iptoasn 表下到本地再查，一次能给多个 AS，也不怕接口限速。`rir:` 默认只查 APNIC，写 `rir:CN,all` 会合并 5 个 RIR（更全，但要多下 4 个文件）。`rir4:` / `rir6:` / `asnfile4:` / `asnfile6:` 可以只要其中一族。
+
+行尾加 `!opt` 来源就变成可选的：拉不到只告警跳过，不让整个分类构建失败。
+
+```
+rir:CN                                                    # 自主源，不能失败
+url:https://.../gaoyifan/china-operator-ip/.../china.txt !opt   # 交叉源，挂了无所谓
+```
+
+## 哪些上游是一手的
+
+第三方规则仓库（blackmatrix7、Loyalsoldier、ispip.clang.cn、gaoyifan…）本质都是对下面这些东西的二次加工，而且随时可能删库停更。能直接采源头的就采源头：
+
+| 前缀 | 数据源 | 为什么死不了 |
+|---|---|---|
+| `rir:` | APNIC / ARIN / RIPE / LACNIC / AFRINIC 的委派记录 | RIR 是 IP 分配的注册机构本身，所有「中国 IP 库」都派生自它 |
+| `asnfile:` | iptoasn 每日快照 | 单文件，下到本地可无限次反查，脚本不足 30 行可自建 |
+| `ct:` | 证书透明度日志（crt.sh） | 签 TLS 证书必须记录，公司绕不过去，比人工抓包整理的域名表更全 |
+| `json:` / `url:` | 厂商自己公布的网段（Google / Cloudflare / Microsoft / Telegram） | 一手且稳定，没有中间商 |
+
+`ct:` 的实测效果：`netflix.com` 能枚举出 630 个子域，而常见第三方规则集里只有 36 条；`openai.com` 默认深度出 188 条，放到 `maxdepth=3` 是 389 条。代价是会掺进 `test` / `dev` / `staging` 这类内部域名，脚本里按标签过滤掉了，还觉得脏就调小 `maxdepth`。crt.sh 是免费公共服务，偶尔 502，所以这个来源都该标 `!opt`。
+
+真正采不到的只剩两样：**gfwlist**（要靠墙内外双向探测，是测量不是推导）和**分类语义**（`category-ai-!cn` 里到底装什么，是社区共识）。
 
 `fetch-sources.py` 读这些清单，拉回来之后做三件事：
 
@@ -68,14 +93,14 @@ example.com  精确命中
 
 ## IP 分流
 
-ipcidr 分类都是现成的，来源要么是官方公布的网段，要么是按 AS 反查：
+ipcidr 分类都是现成的，来源要么是 RIR 委派记录自采，要么是官方公布的网段，要么是按 AS 反查：
 
 | 分类 | 来源 | 条数 |
 |---|---|---|
-| `cn-ip` | 国内 IP 库，两个源交叉 | 8842 |
+| `cn-ip` | `rir:CN`（APNIC 委派记录自采）+ BGP 交叉源 | 8842 |
 | `oracle-ip` | AS31898 | 3877 |
 | `facebook-ip` | AS32934 | 560 |
-| `netflix-ip` | AS2906 / 40027 / 55095 | 558 |
+| `netflix-ip` | AS2906 / 40027 / 55095（RIPE 主源 + iptoasn 离线表交叉） | 560 |
 | `google-ip` | 官方 goog.json | 148 |
 | `microsoft-ip` | 微软端点接口 | 93 |
 | `steam-ip` | AS32590 | 78 |

@@ -1,4 +1,7 @@
-# Netflix 没有官方网段表，按 AS 取它公布的前缀
+# Netflix 没有官方网段表，按它自己公布的 AS 反查前缀。
+# 主源走 RIPE Stat（RIR 官方接口，不会消失）；
+# asnfile 走 iptoasn 离线表，一次查完多个 AS 不受接口限速，作为交叉源。
 asn:2906
 asn:40027
 asn:55095
+asnfile:2906,40027,55095 !opt

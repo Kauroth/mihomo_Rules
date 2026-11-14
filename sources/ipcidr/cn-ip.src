@@ -1,3 +1,8 @@
-# 国内 IP：两个独立来源交叉，比单一源准
-url:https://ispip.clang.cn/all_cn.txt
-url:https://raw.githubusercontent.com/gaoyifan/china-operator-ip/ip-lists/china.txt
+# 国内 IP：主源是 RIR 官方委派记录（APNIC），自采，不依赖任何个人项目。
+# ispip.clang.cn / gaoyifan / chnroutes2 这些「中国 IP 库」全都是从这个文件派生的，
+# 所以直接采源头，它们哪天删库也不影响这里。
+rir:CN
+
+# 交叉源：基于 BGP 实际公告，比纯委派记录更贴近真实路由（委派记录里有未启用的段）。
+# 标了 !opt，拉不到就跳过，不会让整个分类构建失败。
+url:https://raw.githubusercontent.com/gaoyifan/china-operator-ip/ip-lists/china.txt !opt
