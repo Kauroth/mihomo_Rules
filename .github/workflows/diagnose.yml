@@ -1,0 +1,36 @@
+name: diagnose upstream
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: probe iptoasn
+        run: |
+          for u in "https://iptoasn.com/data/ip2asn-v4.tsv.gz" "https://iptoasn.com/data/ip2asn-combined.tsv.gz"; do
+            echo "=================== $u"
+            echo "--- HEAD ---"
+            curl -fsSIL --max-time 60 "$u" | grep -iE '^(HTTP|content-type|content-length|location)' || echo "HEAD 失败"
+            echo "--- 下载前 64 字节 ---"
+            if curl -fsSL --max-time 120 -r 0-63 "$u" -o /tmp/f.bin; then
+              xxd /tmp/f.bin | head -4
+            else
+              echo "下载失败"
+            fi
+            echo "--- 完整下载并解压前 3 行 ---"
+            if curl -fsSL --max-time 180 "$u" -o /tmp/f.gz; then
+              ls -l /tmp/f.gz
+              zcat /tmp/f.gz 2>/dev/null | head -3 || echo "!! zcat 失败"
+            else
+              echo "!! 完整下载失败"
+            fi
+            echo
+          done
+      - name: probe crt.sh 稳定性
+        run: |
+          for d in openai.com anthropic.com netflix.com; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 90 "https://crt.sh/?q=%25.${d}&output=json")
+            echo "crt.sh $d → HTTP $code"
+          done
