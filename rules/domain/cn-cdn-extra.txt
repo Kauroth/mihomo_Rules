@@ -34,3 +34,9 @@ cn.bing.com
 +.steamstatic.com
 +.steamcdn-a.akamaihd.net
 +.steampowered.com
+
+# ---------- 腾讯云 MaaS（v2fly 的 cn 列表未收录）----------
+# tokenhub.tencentmaas.com → CNAME ins-*.ias.tencent-cloud.net
+# 国内解析落点 183.192.196.206 / 183.194.189.201（中国移动），应直连
++.tencentmaas.com
+
