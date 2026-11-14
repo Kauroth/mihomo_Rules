@@ -69,14 +69,14 @@
       "attr_skipped": 1531,
       "behavior": "domain",
       "classical": 0,
-      "count": 241,
+      "count": 242,
       "exact": 163,
       "junk_dropped": 1,
       "keyword": 0,
       "name": "apple-cn",
       "regexp": 0,
       "sources": 3,
-      "suffix": 79
+      "suffix": 80
     },
     "domain/appletv": {
       "attr_skipped": 0,
@@ -121,27 +121,27 @@
       "attr_skipped": 488,
       "behavior": "domain",
       "classical": 12,
-      "count": 110474,
+      "count": 110475,
       "exact": 11,
       "junk_dropped": 65,
       "keyword": 9,
       "name": "cn",
       "regexp": 3,
       "sources": 5,
-      "suffix": 110528
+      "suffix": 110529
     },
     "domain/cn-lite": {
       "attr_skipped": 488,
       "behavior": "domain",
       "classical": 3,
-      "count": 6265,
+      "count": 6266,
       "exact": 13,
       "junk_dropped": 3,
       "keyword": 0,
       "name": "cn-lite",
       "regexp": 3,
       "sources": 3,
-      "suffix": 6255
+      "suffix": 6256
     },
     "domain/discord": {
       "attr_skipped": 0,
@@ -667,7 +667,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 93,
+      "count": 34,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279126
+  "total": 279070
 }
