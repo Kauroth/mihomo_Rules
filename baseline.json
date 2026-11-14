@@ -78,7 +78,59 @@
       "sources": 3,
       "suffix": 79
     },
+    "domain/appletv": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 0,
+      "count": 8,
+      "exact": 7,
+      "junk_dropped": 0,
+      "keyword": 0,
+      "name": "appletv",
+      "regexp": 0,
+      "sources": 1,
+      "suffix": 1
+    },
+    "domain/applications": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 131,
+      "count": 1,
+      "exact": 0,
+      "junk_dropped": 0,
+      "keyword": 5,
+      "name": "applications",
+      "regexp": 0,
+      "sources": 2,
+      "suffix": 1
+    },
+    "domain/bilibili": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 6,
+      "count": 120,
+      "exact": 53,
+      "junk_dropped": 0,
+      "keyword": 0,
+      "name": "bilibili",
+      "regexp": 0,
+      "sources": 2,
+      "suffix": 67
+    },
     "domain/cn": {
+      "attr_skipped": 488,
+      "behavior": "domain",
+      "classical": 12,
+      "count": 110474,
+      "exact": 11,
+      "junk_dropped": 65,
+      "keyword": 9,
+      "name": "cn",
+      "regexp": 3,
+      "sources": 5,
+      "suffix": 110528
+    },
+    "domain/cn-lite": {
       "attr_skipped": 488,
       "behavior": "domain",
       "classical": 3,
@@ -86,7 +138,7 @@
       "exact": 13,
       "junk_dropped": 3,
       "keyword": 0,
-      "name": "cn",
+      "name": "cn-lite",
       "regexp": 3,
       "sources": 3,
       "suffix": 6255
@@ -155,6 +207,45 @@
       "regexp": 0,
       "sources": 3,
       "suffix": 56
+    },
+    "domain/games": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 7,
+      "count": 938,
+      "exact": 62,
+      "junk_dropped": 0,
+      "keyword": 4,
+      "name": "games",
+      "regexp": 3,
+      "sources": 3,
+      "suffix": 876
+    },
+    "domain/games-cn": {
+      "attr_skipped": 9,
+      "behavior": "domain",
+      "classical": 1,
+      "count": 418,
+      "exact": 87,
+      "junk_dropped": 0,
+      "keyword": 0,
+      "name": "games-cn",
+      "regexp": 1,
+      "sources": 5,
+      "suffix": 331
+    },
+    "domain/gfw": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 0,
+      "count": 4337,
+      "exact": 0,
+      "junk_dropped": 97,
+      "keyword": 0,
+      "name": "gfw",
+      "regexp": 0,
+      "sources": 2,
+      "suffix": 4434
     },
     "domain/github": {
       "attr_skipped": 0,
@@ -234,6 +325,19 @@
       "sources": 1,
       "suffix": 72
     },
+    "domain/media": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 29,
+      "count": 1307,
+      "exact": 37,
+      "junk_dropped": 5,
+      "keyword": 26,
+      "name": "media",
+      "regexp": 0,
+      "sources": 2,
+      "suffix": 1275
+    },
     "domain/microsoft": {
       "attr_skipped": 0,
       "behavior": "domain",
@@ -272,6 +376,19 @@
       "regexp": 4,
       "sources": 1,
       "suffix": 24
+    },
+    "domain/networktest": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 2,
+      "count": 2009,
+      "exact": 107,
+      "junk_dropped": 1,
+      "keyword": 1,
+      "name": "networktest",
+      "regexp": 1,
+      "sources": 5,
+      "suffix": 1903
     },
     "domain/onedrive": {
       "attr_skipped": 0,
@@ -312,18 +429,31 @@
       "sources": 1,
       "suffix": 14
     },
+    "domain/private": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 1,
+      "count": 139,
+      "exact": 14,
+      "junk_dropped": 0,
+      "keyword": 0,
+      "name": "private",
+      "regexp": 1,
+      "sources": 2,
+      "suffix": 125
+    },
     "domain/proxy": {
-      "attr_skipped": 1331,
+      "attr_skipped": 1651,
       "behavior": "domain",
       "classical": 151,
-      "count": 21348,
-      "exact": 101,
-      "junk_dropped": 2356,
+      "count": 24237,
+      "exact": 95,
+      "junk_dropped": 2397,
       "keyword": 0,
       "name": "proxy",
       "regexp": 151,
-      "sources": 2,
-      "suffix": 23603
+      "sources": 3,
+      "suffix": 26539
     },
     "domain/samsung": {
       "attr_skipped": 0,
@@ -416,6 +546,32 @@
       "sources": 2,
       "suffix": 33
     },
+    "domain/tld-proxy": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 0,
+      "count": 824,
+      "exact": 0,
+      "junk_dropped": 5,
+      "keyword": 0,
+      "name": "tld-proxy",
+      "regexp": 0,
+      "sources": 2,
+      "suffix": 829
+    },
+    "domain/trackerslist": {
+      "attr_skipped": 0,
+      "behavior": "domain",
+      "classical": 0,
+      "count": 88,
+      "exact": 0,
+      "junk_dropped": 14,
+      "keyword": 0,
+      "name": "trackerslist",
+      "regexp": 0,
+      "sources": 3,
+      "suffix": 102
+    },
     "domain/twitter": {
       "attr_skipped": 0,
       "behavior": "domain",
@@ -459,7 +615,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 22,
+      "count": 19,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -563,7 +719,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 14,
+      "count": 13,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -573,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 155568
+  "total": 279116
 }
