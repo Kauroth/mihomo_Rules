@@ -148,3 +148,16 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # jsDelivr 对分支文件有缓存，不主动刷的话客户端可能拿到滞后十几小时的旧版。
+      # 只刷客户端真正会拉的二进制格式，省点请求；失败不拦构建（CDN 那边的问题不该拖垮发布）。
+      - name: 刷新 jsDelivr 缓存
+        if: success()
+        run: |
+          set -euo pipefail
+          files=$(cd dist && find . -type f \( -name '*.mrs' -o -name '*.srs' \) | sed 's|^\./||' | sort)
+          n=$(printf '%s\n' "$files" | wc -l)
+          echo "待刷新 $n 个文件"
+          printf '%s\n' "$files" | xargs -P 8 -I{} curl -fsS --max-time 30 -o /dev/null \
+            "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@dist/{}" || true
+          echo "刷新请求已发出"
