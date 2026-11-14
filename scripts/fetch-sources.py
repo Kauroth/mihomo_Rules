@@ -34,7 +34,7 @@
 
 哪些是「一手」的，上游死了也不影响你：
   rir:     RIR（APNIC/ARIN/RIPE…）的官方分配记录，所有「中国 IP 库」的共同源头
-  asnfile: iptoasn 每日快照，可自建，替代需要逐个请求的 RIPE 接口
+  asnfile: iptoasn 每小时的 ASN ↔ 前缀快照，可自建，替代需要逐个请求的 RIPE 接口
   ct:      证书透明度日志，公司签证书必须记录，无法伪造也无法绕过
   json:/url: 指向厂商自己公布的网段表（Google/Cloudflare/Microsoft 等）
 
@@ -76,9 +76,11 @@ RIR_FILES = {
     'afrinic': 'https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-latest',
 }
 
-# iptoasn：每日更新的 ASN ↔ 前缀离线表，下载一次可无限次反查，不受 API 限速
+# iptoasn：每小时的 ASN ↔ 前缀离线表，下载一次可无限次反查，不受 API 限速。
+# 行格式：start_ip \t end_ip \t AS号（纯数字，如 13335）\t 国家码 \t AS 描述
 IPTOASN_V4 = 'https://iptoasn.com/data/ip2asn-v4.tsv.gz'
 IPTOASN_V6 = 'https://iptoasn.com/data/ip2asn-v6.tsv.gz'
+IPTOASN_COMBINED = 'https://iptoasn.com/data/ip2asn-combined.tsv.gz'
 
 # 证书透明度日志：任何公司签 TLS 证书都必须记录，绕不过去，是一手数据
 CRTSH = 'https://crt.sh/?q=%25.{}&output=json'
@@ -398,20 +400,29 @@ def parse_rir(text, cc, vers, registry):
     return out
 
 
-def parse_ip2asn(text, asns):
+def normalize_asns(asns):
+    """'2906,AS40027' → {'2906', '40027'}"""
+    return {re.sub(r'^AS', '', a.strip().upper()) for a in asns.split(',') if a.strip()}
+
+
+def parse_ip2asn(text, want):
     """从 iptoasn 的 TSV 里切出指定 AS 公布的前缀。
 
-    行格式（tab 分隔）：start_ip  end_ip  AS1234  description  country
-    起止 IP 要合并成最小前缀集合，用 ipaddress 处理最稳。
+    行格式（tab 分隔）：start_ip  end_ip  AS号  国家码  AS 描述
+       例：1.0.0.0 <TAB> 1.0.0.255 <TAB> 13335 <TAB> US <TAB> CLOUDFLARENET - Cloudflare, Inc.
+    注意 AS 号是**纯数字**（13335），不是 AS13335 —— 官网只写 AS_number 不说格式，
+    这里两种写法都收。起止 IP 要用 ipaddress 合成最小前缀集合。
     """
     out = []
     for line in text.splitlines():
-        f = line.split('\t')
-        if len(f) < 3 or f[2] not in asns:
+        f = line.replace('\t', ' ').split()
+        if len(f) < 3:
+            continue
+        if re.sub(r'^AS', '', f[2].upper()) not in want:
             continue
         try:
-            a = ipaddress.ip_address(f[0].strip())
-            b = ipaddress.ip_address(f[1].strip())
+            a = ipaddress.ip_address(f[0])
+            b = ipaddress.ip_address(f[1])
         except ValueError:
             continue
         if a.version != b.version:
@@ -606,28 +617,33 @@ def build_one(name, behavior, src_file, remote, use_cache, excluder, junk):
                                            ' [!%s]' % ','.join(failed) if failed else '')
             elif kind == 'asnfile':
                 asns, vers = spec
-                wanted_as = {'AS' + a.strip().lstrip('AS') for a in asns.split(',') if a.strip()}
-                if not wanted_as:
+                want_as = normalize_asns(asns)
+                if not want_as:
                     raise RuntimeError('asnfile: 没写 AS 号')
+                # 两族都要时下合并文件（一次请求 10MB），只要一族就下对应的单文件
+                if len(vers) == 2:
+                    srcs = [(IPTOASN_COMBINED, 'combined')]
+                elif vers == ('ipv4',):
+                    srcs = [(IPTOASN_V4, 'ipv4')]
+                else:
+                    srcs = [(IPTOASN_V6, 'ipv6')]
                 found, failed = [], []
-                for ver, url in (('ipv4', IPTOASN_V4), ('ipv6', IPTOASN_V6)):
-                    if ver not in vers:
-                        continue
+                for url, label in srcs:
                     try:
                         raw = fetch_raw(url, use_cache, timeout=300)
                         try:
                             text = gzip.decompress(raw).decode('utf-8', 'replace')
                         except OSError:
                             text = raw.decode('utf-8', 'replace')
-                        found += parse_ip2asn(text, wanted_as)
+                        found += parse_ip2asn(text, want_as)
                     except Exception as e:                      # noqa: BLE001
-                        failed.append('%s(%s)' % (ver, e))
+                        failed.append('%s(%s)' % (label, e))
                 if not found:
                     raise RuntimeError('asnfile 全部失败: %s' % '; '.join(failed))
                 found = sorted(set(found))
                 other += ['IP-CIDR,%s' % v for v in found]
-                note = 'asnfile:%s=%d%s' % (','.join(sorted(wanted_as)), len(found),
-                                            ' [!%s]' % ','.join(failed) if failed else '')
+                note = 'asnfile:AS%s=%d%s' % (','.join(sorted(want_as)), len(found),
+                                              ' [!%s]' % ','.join(failed) if failed else '')
             elif kind == 'ct':
                 domain, _, params = spec.partition(',')
                 maxdepth = 2

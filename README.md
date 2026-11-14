@@ -56,11 +56,13 @@ url:https://.../gaoyifan/china-operator-ip/.../china.txt !opt   # 交叉源，�
 | 前缀 | 数据源 | 为什么死不了 |
 |---|---|---|
 | `rir:` | APNIC / ARIN / RIPE / LACNIC / AFRINIC 的委派记录 | RIR 是 IP 分配的注册机构本身，所有「中国 IP 库」都派生自它 |
-| `asnfile:` | iptoasn 每日快照 | 单文件，下到本地可无限次反查，脚本不足 30 行可自建 |
+| `asnfile:` | iptoasn 每小时的 ASN ↔ 前缀快照 | 单文件，下到本地可无限次反查，脚本不足 30 行可自建 |
 | `ct:` | 证书透明度日志（crt.sh） | 签 TLS 证书必须记录，公司绕不过去，比人工抓包整理的域名表更全 |
 | `json:` / `url:` | 厂商自己公布的网段（Google / Cloudflare / Microsoft / Telegram） | 一手且稳定，没有中间商 |
 
-`ct:` 的实测效果：`netflix.com` 能枚举出 630 个子域，而常见第三方规则集里只有 36 条；`openai.com` 默认深度出 188 条，放到 `maxdepth=3` 是 389 条。代价是会掺进 `test` / `dev` / `staging` 这类内部域名，脚本里按标签过滤掉了，还觉得脏就调小 `maxdepth`。crt.sh 是免费公共服务，偶尔 502，所以这个来源都该标 `!opt`。
+`ct:` 的实测效果：`netflix.com` 能枚举出 630 个子域，`openai.com` 默认深度出 188 条，放到 `maxdepth=3` 是 389 条。
+
+但别指望产物条数跟着涨——归一化的后缀冗余消除会把 `xxx.openai.com` 全部吸进 `+.openai.com` 一条里。CT 真正的价值是**发现新的顶级域**：openai 那次就补出了 `oaistatic.com`、`oaiusercontent.com`、`chatgpt.livekit.cloud` 这些 v2fly 人工分类里没有的域，顺带也验证了父域规则是不是完整的。代价是会掺进 `test` / `dev` / `staging` 这类内部域名，脚本按标签过滤掉了，还嫌脏就调小 `maxdepth`。crt.sh 是免费公共服务，偶尔 502，所以这个来源都该标 `!opt`。
 
 真正采不到的只剩两样：**gfwlist**（要靠墙内外双向探测，是测量不是推导）和**分类语义**（`category-ai-!cn` 里到底装什么，是社区共识）。
 
