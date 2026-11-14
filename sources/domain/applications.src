@@ -1,5 +1,10 @@
-# 应用下载（Steam 游戏更新、暴雪、Epic 等的大流量下载域名）。
-# 这集通常指向直连，或者指一个「不限速但便宜」的节点。
-# 注意 clash-rules 这份里混着 PROCESS-NAME,xxx 这类进程规则，它们装不进
-# domain 规则集，会被挪到 classical/applications.list，需要的话用 classical provider 引。
+# 应用下载：Steam 游戏更新、暴雪、Epic 等大流量下载域名。
+# 这集通常指向 DIRECT，或指一个「带宽大但不要求低延迟」的节点。
+#
+# 多数同名的列表只装进程名不装域名，所以这里拼两路：
+#   1) blackmatrix7 的 Download.list —— 域名，进 domain 规则集
+#   2) clash-rules 的 applications.txt —— 98 条 PROCESS-NAME（frpc / hysteria /
+#      sing-box 这类代理程序）。进程规则装不进 domain 规则集，会被挪到
+#      classical/applications.list，需要的话用 behavior: classical 的 provider 引。
+url:https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Download/Download.list
 url:https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/applications.txt
