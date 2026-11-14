@@ -64,6 +64,9 @@ BUILD = ROOT / 'build'
 CACHE = ROOT / '.cache'
 UA = {'User-Agent': 'mihomo_Rules-fetch/1.0'}
 
+# 缓存文件名 → 原始 URL。fetch_raw 顺手记录，main 结束时落到 .cache/MANIFEST.json
+MANIFEST = {}
+
 DATA_RAW = 'https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/{}'
 RIPESTAT = 'https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{}'
 
@@ -193,10 +196,15 @@ def load_excluder():
 
 
 def fetch_raw(url, use_cache=True, timeout=30):
-    """下载并缓存原始字节。返回 bytes；失败抛异常。"""
+    """下载并缓存原始字节。返回 bytes；失败抛异常。
+
+    缓存文件名是 URL 的 sha1 前缀，看不出对应关系，所以顺手记一份 MANIFEST，
+    CI 快照打包 .cache 时带上它，将来还能还原出「哪个文件是哪个源」。
+    """
     key = hashlib.sha1(url.encode()).hexdigest()[:16]
     suffix = pathlib.Path(url.split('?')[0]).suffix or '.txt'
     cached = CACHE / (key + suffix)
+    MANIFEST[cached.name] = url
     if use_cache and cached.exists() and cached.stat().st_size > 0:
         return cached.read_bytes()
     req = urllib.request.Request(url, headers=UA)
@@ -565,12 +573,16 @@ def read_sources(path):
 
 
 def build_one(name, behavior, src_file, remote, use_cache, excluder, junk):
+    """构建一个分类。返回值是结构化统计，会被 main() 汇总成 build/report.json，
+    供 scripts/check-regression.py 做环比检查。"""
     all_rules, extra, stats = [], [], []
+    attr_skipped = 0
     for kind, spec, want, deny, optional in read_sources(src_file):
         rules, other, note = [], [], ''
         try:
             if kind == 'data':
                 rules, skipped = parse_dlc(remote.raw(spec), remote, want, deny, (spec,))
+                attr_skipped += skipped
                 note = 'data:%s%s=%d%s' % (spec, ''.join(' @' + a for a in sorted(want)),
                                            len(rules),
                                            ' (+%d过滤)' % skipped if skipped else '')
@@ -682,6 +694,7 @@ def build_one(name, behavior, src_file, remote, use_cache, excluder, junk):
     outdir.mkdir(parents=True, exist_ok=True)
     header = ('# 由 scripts/fetch-sources.py 从 sources/%s/%s 生成 —— 不要手改'
               % (behavior, src_file.name))
+    dropped_n = 0
     if behavior == 'ipcidr':
         body = sorted(set(ips))
     else:
@@ -694,6 +707,7 @@ def build_one(name, behavior, src_file, remote, use_cache, excluder, junk):
             if dropped:
                 junk.update(dropped)
                 stats.append('exclude=-%d' % len(dropped))
+                dropped_n = len(dropped)
                 body = kept
     note = '  ← ' + ' | '.join(stats) if stats else ''
     (outdir / (name + '.txt')).write_text('\n'.join([header] + body) + '\n', 'utf-8')
@@ -709,7 +723,21 @@ def build_one(name, behavior, src_file, remote, use_cache, excluder, junk):
 
     print('%-22s %6d 条  (suffix %d / exact %d / keyword %d / regexp %d)%s' % (
         name, len(body), len(suffix), len(exact), len(keyword), len(regexp), note))
-    return len(body)
+    return {
+        'behavior': behavior,
+        'name': name,
+        'count': len(body),
+        'suffix': len(suffix),
+        'exact': len(exact),
+        'keyword': len(keyword),
+        'regexp': len(regexp),
+        'classical': len(keyword) + len(regexp) + len(misc),
+        # 被 @属性 条件过滤掉的条数。上游哪天把属性标注丢了（退化成 Clash 格式），
+        # 这个数会掉到 0，而产物可能看起来没问题 —— 所以它必须进报告。
+        'attr_skipped': attr_skipped,
+        'junk_dropped': dropped_n,
+        'sources': len(stats),
+    }
 
 
 def main():
@@ -725,6 +753,8 @@ def main():
     excluder = load_excluder()
     junk = set()
     total = 0
+    report = {}
+    failed = []
     for behavior in ('domain', 'ipcidr'):
         d = SRC / behavior
         if not d.is_dir():
@@ -735,9 +765,12 @@ def main():
             if wanted and name not in wanted:
                 continue
             try:
-                total += build_one(name, behavior, src_file, remote, use_cache, excluder, junk)
+                info = build_one(name, behavior, src_file, remote, use_cache, excluder, junk)
+                total += info['count']
+                report['%s/%s' % (behavior, name)] = info
             except Exception as e:                   # noqa: BLE001
                 print('!! %-20s %s' % (name, e))
+                failed.append('%s/%s: %s' % (behavior, name, e))
 
     if junk:                       # 被剔掉的条目单独成集，方便直接指到 REJECT
         out = BUILD / 'domain' / 'junk.txt'
@@ -745,7 +778,23 @@ def main():
         out.write_text('\n'.join(['# 被 sources/exclude.txt 剔出来的条目 —— 不要手改'] +
                                  sorted(junk)) + '\n', 'utf-8')
         print('\njunk %d 条（从各分类里剔除，单独成集）' % len(junk))
-    print('\n合计 %d 条，产物在 build/' % total)
+
+    # 结构化报告：scripts/check-regression.py 拿它跟基准比，看有没有异常涨跌
+    BUILD.mkdir(parents=True, exist_ok=True)
+    (BUILD / 'report.json').write_text(json.dumps({
+        'generated': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'total': total,
+        'failed': failed,
+        'categories': report,
+    }, ensure_ascii=False, indent=2, sort_keys=True) + '\n', 'utf-8')
+
+    # 缓存清单：CI 快照打包 .cache 时一起带上，将来能还原「哪个文件是哪个源」
+    if MANIFEST:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        (CACHE / 'MANIFEST.json').write_text(
+            json.dumps(MANIFEST, ensure_ascii=False, indent=2, sort_keys=True) + '\n', 'utf-8')
+
+    print('\n合计 %d 条，产物在 build/（报告：build/report.json）' % total)
     return 0
 
 
