@@ -368,8 +368,15 @@ def parse_plain_or_clash(text, bare_is_suffix=False):
         elif '://' in line or re.match(r'^[\w.\-]+:\d+', line):
             # tracker URL 形式，只取主机名
             host = extract_host(line)
-            if '.' in host:
-                rules.append(('domain', host, frozenset()))
+            if not host or '.' not in host:
+                continue
+            try:
+                ipaddress.ip_address(host)
+                continue          # IP 形式的 tracker（http://1.2.3.4:6969/announce）
+                                  # 收成域名规则永远不会命中，直接丢掉
+            except ValueError:
+                pass
+            rules.append(('domain', host, frozenset()))
         elif '/' in line and re.fullmatch(r'[0-9a-fA-F:.]+/\d+', line):
             other.append('IP-CIDR,%s' % line)
         elif line.startswith('+.'):

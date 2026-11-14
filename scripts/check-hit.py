@@ -113,12 +113,18 @@ def main():
                 if matches('domain', name, sub):
                     fails.append('%s: %s ← exact 规则不该匹配子域，实际命中了' % (name, sub))
 
-        # 分类级反例：确认没有过度匹配
+        # 分类级反例：确认规则集不是「什么都匹配」。
+        # 有些分类本身就覆盖了探测域名 —— private 里有 `invalid` / `test` 这些保留 TLD，
+        # 所以 `xxx.invalid` 命中是正常行为，不算问题。以本地规则判定为准：
+        # 本地说不该覆盖、实际却命中了，才是转换出错（比如字段写成了匹配一切）。
         neg = neg_probe(name)
-        checked += 1
-        n += 1
-        if matches('domain', name, neg):
-            fails.append('%s: %s 期望不命中，实际命中（规则集过度匹配）' % (name, neg))
+        if suffix_covers(lines, neg):
+            skipped += 1
+        else:
+            checked += 1
+            n += 1
+            if matches('domain', name, neg):
+                fails.append('%s: %s 期望不命中，实际命中（规则集过度匹配）' % (name, neg))
 
         bad = any(f.startswith(name + ':') for f in fails)
         print('  %s %-22s %d 项%s' % ('⚠️' if bad else '✅', name, n,
