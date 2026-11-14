@@ -121,14 +121,14 @@
       "attr_skipped": 488,
       "behavior": "domain",
       "classical": 12,
-      "count": 110475,
+      "count": 110426,
       "exact": 11,
       "junk_dropped": 65,
       "keyword": 9,
       "name": "cn",
       "regexp": 3,
       "sources": 5,
-      "suffix": 110529
+      "suffix": 110480
     },
     "domain/cn-lite": {
       "attr_skipped": 488,
@@ -667,7 +667,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 34,
+      "count": 93,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3881,
+      "count": 3914,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279070
+  "total": 279113
 }
