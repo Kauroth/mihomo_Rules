@@ -1,0 +1,5 @@
+# BT tracker 域名（约 100 条）。让 tracker 走代理能显著提高连接率。
+# 这两个列表是「tracker URL」格式（udp://host:port/announce），
+# fetch-sources.py 会只取主机名 —— 直接按裸域名收会把 scheme 和端口写进规则集。
+url:https://raw.githubusercontent.com/XIU2/TrackersListCollection/master/all.txt
+url:https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt

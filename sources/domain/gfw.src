@@ -1,0 +1,3 @@
+# 被墙域名清单（gfwlist 系）。单独成集，方便只给它在规则链里安排一个靠前的位置。
+# 这份数据靠墙内外双向探测得来，不是能推导出来的东西，自采不了，只能引用。
+url:https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt

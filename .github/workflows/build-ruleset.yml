@@ -12,6 +12,13 @@ on:
     - cron: '0 3 * * *'      # 每天 03:00 北京时间，与上游构建时间对齐
       timezone: 'Asia/Shanghai'
   workflow_dispatch:
+    inputs:
+      accept_baseline:
+        # 有意扩大某个分类（比如第一次接上国内域名表，条数会翻十几倍）时，
+        # 门禁会正确地拦住。确认变化合理后用它重建基准 —— 显式确认，不搞自动放行。
+        description: '接受本次变化并重建环比基准（跳过门禁，会直接发布）'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -52,7 +59,16 @@ jobs:
       # 构建成功 ≠ 数据是对的。上游改格式、丢属性标注、被 !opt 跳过，
       # 都会产出「看着正常但内容缩水」的规则集。这一步专门拦这种情况。
       - name: 环比检查（条数突降 / 属性退化就拦住）
+        if: ${{ !inputs.accept_baseline }}
         run: python3 scripts/check-regression.py
+
+      # 手动触发了 accept_baseline 就走这里：直接把这次结果记成新基准，
+      # 后面的编译和发布照常进行。
+      - name: 重建环比基准（手动接受变化）
+        if: ${{ inputs.accept_baseline }}
+        run: |
+          python3 scripts/check-regression.py --update
+          echo "::warning::已按 accept_baseline 重建基准，本次变化被人工接受"
 
       # 上游删库时的退路：把这次拉到的原文存下来。
       # 用 if: always() 是为了让「检查失败时」也留档，方便回头查是哪家变了。

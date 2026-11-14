@@ -1,0 +1,4 @@
+# 内网 / 保留域名 / 各种在线面板。放在规则链最前面指向 DIRECT，避免面板和局域网服务被代理。
+# v2fly 的 private 只有标准保留域，面板域名靠 rules/domain/private-extra.txt 手写补。
+data:private
+file:rules/domain/private-extra.txt

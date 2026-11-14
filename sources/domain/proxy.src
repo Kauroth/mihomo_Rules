@@ -1,3 +1,9 @@
-# 国外域名总集合，但把「国内有节点」的摘掉（@-cn 是排除语义）
-# 这一步就是替代 geosite:geolocation-!cn，且自带 @cn 剔除
-data:geolocation-!cn @-cn
+# 国外域名总集合。
+#   geolocation-!cn 去掉「国内有接入点」的（@-cn，否则会出现「域名解析到海外节点
+#   却 DIRECT 直连」）和广告（@-ads）。
+#   gfw.txt 是被墙域名清单 —— 这份数据靠墙内外双向探测得来，自采不了，只能引用。
+# 注意：不要往这里加 clash-rules 的 tld-not-cn.txt。那是 829 条「顶级域名」规则，
+# 会把所有 .io / .me / .gg 结尾的域名（包括国内的）判成国外。要那份数据请引
+# 独立的 tld-proxy 分类，由你自己决定放在规则链的哪个位置。
+data:geolocation-!cn @-cn @-ads
+url:https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt

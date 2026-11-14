@@ -320,6 +320,17 @@ CLASH_LINE = re.compile(r'^(DOMAIN|DOMAIN-SUFFIX|DOMAIN-KEYWORD|DOMAIN-REGEX|IP-
                         r'PROCESS-NAME|PROCESS-PATH|SRC-IP-CIDR|DST-PORT|SRC-PORT),')
 
 
+def extract_host(line):
+    """`udp://tracker.example.org:1337/announce` → `tracker.example.org`。
+
+    BT tracker 列表（XIU2 / ngosang）是「tracker URL」而不是域名列表，
+    直接按裸域名收会把 `udp://...` 和端口一起写进规则集。普通域名原样返回。
+    """
+    s = re.sub(r'^[a-z][a-z0-9+.\-]*://', '', line)   # 去掉 scheme
+    s = s.split('/', 1)[0]                            # 去掉路径
+    return s.split(':', 1)[0].strip()                 # 去掉端口
+
+
 def parse_plain_or_clash(text, bare_is_suffix=False):
     """吃两种东西：Clash 规则 list，和一行一个域名/CIDR 的纯文本。
 
@@ -354,6 +365,11 @@ def parse_plain_or_clash(text, bare_is_suffix=False):
                 other.append('IP-CIDR,%s' % val + (',no-resolve' if 'no-resolve' in line else ''))
             else:
                 other.append(line)
+        elif '://' in line or re.match(r'^[\w.\-]+:\d+', line):
+            # tracker URL 形式，只取主机名
+            host = extract_host(line)
+            if '.' in host:
+                rules.append(('domain', host, frozenset()))
         elif '/' in line and re.fullmatch(r'[0-9a-fA-F:.]+/\d+', line):
             other.append('IP-CIDR,%s' % line)
         elif line.startswith('+.'):

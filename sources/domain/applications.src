@@ -1,0 +1,5 @@
+# 应用下载（Steam 游戏更新、暴雪、Epic 等的大流量下载域名）。
+# 这集通常指向直连，或者指一个「不限速但便宜」的节点。
+# 注意 clash-rules 这份里混着 PROCESS-NAME,xxx 这类进程规则，它们装不进
+# domain 规则集，会被挪到 classical/applications.list，需要的话用 classical provider 引。
+url:https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/applications.txt

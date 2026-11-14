@@ -1,0 +1,4 @@
+# 国内域名的精简版：只有 v2fly 社区分类 + 手写补充，不带上万条的加速域名表。
+# 路由器、小内存设备引这个；桌面端引 cn。
+data:cn
+file:rules/domain/cn-cdn-extra.txt

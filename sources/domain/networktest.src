@@ -1,0 +1,6 @@
+# 测速站 / IP 归属检测 / IPv6 测试站。
+# 这类站点建议单独指一个策略组（比如直连，或你常用的落地），因为它们测的就是出口 IP。
+data:category-speedtest
+data:test-ipv6
+data:category-ip-geo-detect
+url:https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Speedtest/Speedtest.list
