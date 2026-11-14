@@ -1,58 +1,273 @@
-# 把这段并进 mihomo 主配置。Kauroth/mihomo_Rules 换成你自己的，
-# 集合名（fakeip-filter-extra 等）要和 dist 分支里的文件名一致
+# ============================================================
+# 把这段并进你的 mihomo 主配置。
+# Kauroth/mihomo_Rules → 换成你自己的仓库；集合名要和 dist 分支里的文件名一致。
+#
+# 规则顺序是这个模板的重点：从具体到笼统，国内分类必须排在国外分类之前。
+# 前面实测过 cn 和 proxy 有 214 条重叠（都是「国内有 CDN 的国外服务」），
+# 谁在前谁说了算 —— cn 在前，这些域名走直连才是对的。
+# ============================================================
 
 rule-providers:
-  # ---- 自建：fake-ip 例外（用在 dns.fake-ip-filter 里）----
-  my-fakeip:
-    type: http
-    behavior: domain
-    format: mrs                 # 想直接吃文本就改成 text，url 后接 .txt
-    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/fakeip-filter-extra.mrs"
-    path: ./ruleset/my-fakeip.mrs
-    interval: 86400
-    proxy: DIRECT               # 要走代理才能下载时，填策略组名，例如 节点选择
-
-  # ---- 自建：实测国内 CDN，必须直连（放在别人的 proxy/geolocation-!cn 之前）----
-  my-cn-cdn:
+  # ---------- ① 内网 / 保留域 / 在线面板，永远第一 ----------
+  my-private:
     type: http
     behavior: domain
     format: mrs
-    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/cn-cdn-extra.mrs"
-    path: ./ruleset/my-cn-cdn.mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/private.mrs"
+    path: ./ruleset/private.mrs
     interval: 86400
     proxy: DIRECT
-
-  # ---- 自建：内网 / 组播 / Apple 推送段 ----
   my-private-ip:
     type: http
     behavior: ipcidr
     format: mrs
     url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/ipcidr/private-extra.mrs"
-    path: ./ruleset/my-private-ip.mrs
+    path: ./ruleset/private-extra.mrs
     interval: 86400
     proxy: DIRECT
 
-# ------------------------------------------------------------------
-# 然后：
-# 1) dns.fake-ip-filter 里加一条（放在其它 fake-ip 过滤规则之后）
-#    - RULE-SET,my-fakeip,real-ip
+  # ---------- ② 广告 / 垃圾，整集 REJECT ----------
+  my-ads:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/ads.mrs"
+    path: ./ruleset/ads.mrs
+    interval: 86400
+    proxy: DIRECT
+  # 从各分类里剔出来的垃圾域名（exclude.txt 命中）。不想要就直接不引这一集。
+  my-junk:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/junk.mrs"
+    path: ./ruleset/junk.mrs
+    interval: 86400
+    proxy: DIRECT
+
+  # ---------- ③ 国内域名 / IP：必须排在所有国外分类之前 ----------
+  # cn 有 11 万条；路由器、内存小的设备改成 cn-lite（6 千条）
+  my-cn:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/cn.mrs"
+    path: ./ruleset/cn.mrs
+    interval: 86400
+    proxy: DIRECT
+  my-cn-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/ipcidr/cn-ip.mrs"
+    path: ./ruleset/cn-ip.mrs
+    interval: 86400
+    proxy: DIRECT
+  # 实测「国内有接入点」的国外服务（Apple/微软/谷歌的国内 CDN 等），要直连
+  my-cn-cdn:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/cn-cdn-extra.mrs"
+    path: ./ruleset/cn-cdn-extra.mrs
+    interval: 86400
+    proxy: DIRECT
+
+  # ---------- ④ 国外 / 分流 ----------
+  my-gfw:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/gfw.mrs"
+    path: ./ruleset/gfw.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-proxy:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/proxy.mrs"
+    path: ./ruleset/proxy.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-ai:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/ai.mrs"
+    path: ./ruleset/ai.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-telegram:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/telegram.mrs"
+    path: ./ruleset/telegram.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-telegram-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/ipcidr/telegram-ip.mrs"
+    path: ./ruleset/telegram-ip.mrs
+    interval: 86400
+    proxy: 节点选择
+
+  # ---------- ⑤ 流媒体（要按平台拆策略组时才需要）----------
+  # 只要「流媒体走一个组」的话，引 media 一集就够；
+  # 要细分就把下面这些放在 media 前面，让它们先命中。
+  my-media:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/media.mrs"
+    path: ./ruleset/media.mrs
+    interval: 86400
+    proxy: 流媒体
+  my-netflix:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/netflix.mrs"
+    path: ./ruleset/netflix.mrs
+    interval: 86400
+    proxy: 流媒体
+  my-youtube:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/youtube.mrs"
+    path: ./ruleset/youtube.mrs
+    interval: 86400
+    proxy: 流媒体
+  my-disney:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/disney.mrs"
+    path: ./ruleset/disney.mrs
+    interval: 86400
+    proxy: 流媒体
+  my-netflix-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/ipcidr/netflix-ip.mrs"
+    path: ./ruleset/netflix-ip.mrs
+    interval: 86400
+    proxy: 流媒体
+
+  # ---------- ⑥ 国外平台（按需，只想统一走代理可以不引）----------
+  my-apple:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/apple.mrs"
+    path: ./ruleset/apple.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-google:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/google.mrs"
+    path: ./ruleset/google.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-microsoft:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/microsoft.mrs"
+    path: ./ruleset/microsoft.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-openai:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/openai.mrs"
+    path: ./ruleset/openai.mrs
+    interval: 86400
+    proxy: 节点选择
+  my-github:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/github.mrs"
+    path: ./ruleset/github.mrs
+    interval: 86400
+    proxy: 节点选择
+
+  # ---------- ⑦ fake-ip 例外（用在 dns.fake-ip-filter 里）----------
+  my-fakeip:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://cdn.jsdelivr.net/gh/Kauroth/mihomo_Rules@dist/domain/fakeip-filter-extra.mrs"
+    path: ./ruleset/fakeip-filter-extra.mrs
+    interval: 86400
+    proxy: DIRECT
+
+# ============================================================
+# 规则顺序：从具体到笼统。国内分类一定要在任何国外分类之前，
+# 否则「国内有 CDN 的国外服务」会被判到代理侧。
+# ============================================================
+rules:
+  # ① 内网、面板、不可路由地址 —— 最先
+  - RULE-SET,my-private,DIRECT
+  - RULE-SET,my-private-ip,DIRECT,no-resolve
+
+  # ② 广告与垃圾域名
+  - RULE-SET,my-ads,REJECT
+  - RULE-SET,my-junk,REJECT
+
+  # ③ 国内：域名级优先，一定要在 ④⑤⑥ 之前
+  - RULE-SET,my-cn-cdn,DIRECT       # 实测有国内 CDN 的国外服务
+  - RULE-SET,my-cn,DIRECT
+
+  # ④ 被墙清单（具体域名，命中即走代理）
+  - RULE-SET,my-gfw,🚀 节点选择
+
+  # ⑤ 流媒体细分类（放在 media 之前，让它们先命中）
+  - RULE-SET,my-netflix,🎬 流媒体
+  - RULE-SET,my-youtube,🎬 流媒体
+  - RULE-SET,my-disney,🎬 流媒体
+  - RULE-SET,my-media,🎬 流媒体
+
+  # ⑥ 其他国外平台
+  - RULE-SET,my-openai,🚀 节点选择
+  - RULE-SET,my-telegram,🚀 节点选择
+  - RULE-SET,my-apple,🚀 节点选择
+  - RULE-SET,my-google,🚀 节点选择
+  - RULE-SET,my-microsoft,🚀 节点选择
+  - RULE-SET,my-github,🚀 节点选择
+  - RULE-SET,my-ai,🚀 节点选择
+
+  # ⑦ 国外总集合
+  - RULE-SET,my-proxy,🚀 节点选择
+
+  # ⑧ IP 兜底：域名规则都没命中时，按解析出的 IP 判
+  - RULE-SET,my-netflix-ip,🎬 流媒体,no-resolve
+  - RULE-SET,my-telegram-ip,🚀 节点选择,no-resolve
+  - RULE-SET,my-cn-ip,DIRECT,no-resolve
+
+  # ⑨ 兜底
+  - MATCH,🚀 节点选择
+
+# ============================================================
+# fake-ip 例外：把 my-fakeip 挂进 dns.fake-ip-filter，
+# 让 NTP / STUN 这类必须用真实 IP 的域名走 real-ip
+# ============================================================
+# dns:
+#   fake-ip-filter:
+#     - RULE-SET,my-fakeip,real-ip
 #
-# 2) rules 里，替换掉原来手写的那几段 DOMAIN-SUFFIX / IP-CIDR：
-#    - RULE-SET,my-private-ip,DIRECT,no-resolve      # 放在规则最前面
-#    - RULE-SET,my-cn-cdn,DIRECT                     # 放在 GEOSITE,apple / GEOSITE,microsoft 之前
-#
-# 3) 拉取失败时的兜底（可选，mihomo >= v1.19.6）：provider 里再写一段
-#    payload:
-#      - '+.swcdn.apple.com'
-#      - '+.download.windowsupdate.com'
-#
-# 4) 只想塞几个域名、不值得进仓库：用内联 provider（mihomo >= v1.19.1）
-#    rule-providers:
-#      my-inline:
-#        type: inline
-#        behavior: domain
-#        payload:
-#          - '+.mesu.apple.com'
-#          - '+.ccmdls.adobe.com'
-#    rules:
-#      - RULE-SET,my-inline,DIRECT
+# 几点提醒：
+#   · tld-proxy 这一集（.io / .me 这类顶级域名）**别引** —— 它会把国内的
+#     .io / .me 站点一起判成国外。数据在仓库里，用不用你自己决定。
+#   · applications 里的进程名规则（PROCESS-NAME）装不进 domain 规则集，
+#     在 dist/classical/applications.list，需要就用 behavior: classical 的 provider 引。
+#   · 想只吃某个分类的一小部分，用 mihomo >= v1.19.1 的 inline provider 手写即可。
