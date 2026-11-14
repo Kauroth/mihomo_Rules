@@ -149,7 +149,19 @@ sing-box 这边还比 mihomo 少一个坑：mihomo 的 `behavior: domain` 装不
 
 （mihomo 那边不需要这套：它的规则集是文本直接喂内核的，没有转换环节。有转换风险的是 sing-box 这一侧。）
 
-两道都过不了就 `dist` 停在上一版，客户端不受影响。确认是上游的合理变化后，本地跑 `python3 scripts/check-regression.py --update` 重建基准并提交。阈值在脚本顶部常量里，误报就调，别绕过。
+两道都过不了就 `dist` 停在上一版，客户端不受影响。
+
+**关于失败邮件**：门禁拦住时这个 workflow 会失败，GitHub 会发邮件——**那封信的意思是「数据变化超出预期，需要你确认」，不是构建崩了**。日志和 Step Summary 里会写清楚被拦的原因。
+
+确认是上游的合理变化后，重新跑一次并显式接受：
+
+```bash
+gh workflow run build-ruleset.yml -f accept_baseline=true
+```
+
+**有意扩大某个分类时（比如第一次接上国内域名表，条数会翻十几倍），注定会失败一次**——这是设计使然，不是可以绕过的。`baseline.json` 只有全部通过才会更新，所以「拦住 → 确认 → 接受」是必经流程。
+
+构建之间有并发保护：同一分支的 run 会排队而不是并行，避免两个都成功的 run 同时 force push `dist` 导致状态错乱。
 
 ## 上游快照
 

@@ -23,6 +23,14 @@ on:
 permissions:
   contents: write
 
+# 同一分支的构建排队而不是并行：两个 run 都成功的话会同时 force push dist，
+# 后推的覆盖先推的，可能留下一个「陈旧但完整」的状态。（accept_baseline 的手动
+# 触发和 push 触发的构建撞在一起时最容易发生。）
+# 用 cancel-in-progress: false 是刻意的 —— 构建不能被中途掐断，否则 dist 可能只推了一半。
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest

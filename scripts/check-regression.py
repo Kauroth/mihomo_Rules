@@ -116,9 +116,14 @@ def main():
         for p in problems:
             lines.append('- %s' % p)
         lines.append('')
-        lines.append('dist 不会更新，客户端继续用上一版。'
-                     '确认是上游的合理变化后，本地跑 `python3 scripts/check-regression.py --update` '
-                     '重建基准并提交。')
+        lines.append('---')
+        lines.append('')
+        lines.append('这次失败是**门禁在正常工作，不是构建崩了** —— GitHub 会因此发一封失败邮件，')
+        lines.append('那封信的意思是「数据变化超出预期，需要你确认」。')
+        lines.append('')
+        lines.append('`dist` 不会更新，客户端继续用上一版。确认是上游的合理变化后，')
+        lines.append('用 workflow_dispatch 勾选 `accept_baseline` 重新跑一次即可（会打印一条 warning 并重建基准）。')
+        lines.append('本地确认：`python3 scripts/check-regression.py --update`。')
 
     body = '\n'.join(lines)
     print('=== 环比检查 ===')
