@@ -1,0 +1,10 @@
+# 手写补充：主流 Dashboard / 在线面板域名。
+# 这些面板一般跑在局域网或本机，走代理会连不上，所以跟 private 一起指 DIRECT。
+# 与 ipcidr/private-extra.txt 的分工：这边管域名，那边管内网/组播 IP 段。
++.yacd.metacubex.one
++.metacubex.github.io
++.metacubexd.pages.dev
++.zephyruso.github.io
++.board.zash.run.place
++.dash.sing-box.app
++.sing-box-dashboard.sagernet.org

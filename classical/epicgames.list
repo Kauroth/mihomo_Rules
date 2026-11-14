@@ -1,0 +1,4 @@
+# classical：装 domain 规则集装不下的东西（keyword / regexp / 进程）
+DOMAIN-REGEX,^cdn\d-epicgames-\d+\.file\.myqcloud\.com$
+DOMAIN-REGEX,^epicgames-download\d-\d+\.file\.myqcloud\.com$
+DOMAIN-REGEX,^epicgames-download\d\.akamaized\.net$

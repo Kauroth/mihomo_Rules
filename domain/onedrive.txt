@@ -1,0 +1,12 @@
+# 由 scripts/fetch-sources.py 从 sources/domain/onedrive.src 生成 —— 不要手改
++.1drv.com
++.1drv.ms
++.livefilestore.com
++.onedrive.co
++.onedrive.co.uk
++.onedrive.com
++.onedrive.eu
++.onedrive.live.com
++.onedrive.net
++.onedrive.org
++.storage.live.com

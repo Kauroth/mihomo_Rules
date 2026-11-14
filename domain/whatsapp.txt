@@ -1,0 +1,12 @@
+# 由 scripts/fetch-sources.py 从 sources/domain/whatsapp.src 生成 —— 不要手改
++.wa.me
++.whatsapp-plus.info
++.whatsapp-plus.me
++.whatsapp-plus.net
++.whatsapp.cc
++.whatsapp.com
++.whatsapp.info
++.whatsapp.net
++.whatsapp.org
++.whatsapp.tv
++.whatsappbrand.com

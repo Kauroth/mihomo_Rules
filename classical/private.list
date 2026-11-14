@@ -1,0 +1,2 @@
+# classical：装 domain 规则集装不下的东西（keyword / regexp / 进程）
+DOMAIN-REGEX,^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
