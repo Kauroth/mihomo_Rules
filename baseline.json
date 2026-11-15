@@ -1,7 +1,7 @@
 {
   "categories": {
     "domain/ads": {
-      "attr_skipped": 9258,
+      "attr_skipped": 9265,
       "behavior": "domain",
       "classical": 1,
       "count": 904,
@@ -69,14 +69,14 @@
       "attr_skipped": 1531,
       "behavior": "domain",
       "classical": 0,
-      "count": 242,
-      "exact": 163,
+      "count": 244,
+      "exact": 164,
       "junk_dropped": 1,
       "keyword": 0,
       "name": "apple-cn",
       "regexp": 0,
       "sources": 3,
-      "suffix": 80
+      "suffix": 81
     },
     "domain/appletv": {
       "attr_skipped": 0,
@@ -121,14 +121,14 @@
       "attr_skipped": 488,
       "behavior": "domain",
       "classical": 12,
-      "count": 110426,
+      "count": 110428,
       "exact": 11,
       "junk_dropped": 65,
       "keyword": 9,
       "name": "cn",
       "regexp": 3,
       "sources": 5,
-      "suffix": 110480
+      "suffix": 110482
     },
     "domain/cn-lite": {
       "attr_skipped": 488,
@@ -352,7 +352,7 @@
       "suffix": 624
     },
     "domain/microsoft-cn": {
-      "attr_skipped": 574,
+      "attr_skipped": 577,
       "behavior": "domain",
       "classical": 0,
       "count": 189,
@@ -443,17 +443,17 @@
       "suffix": 125
     },
     "domain/proxy": {
-      "attr_skipped": 1651,
+      "attr_skipped": 1658,
       "behavior": "domain",
       "classical": 151,
-      "count": 24237,
+      "count": 24239,
       "exact": 95,
       "junk_dropped": 2397,
       "keyword": 0,
       "name": "proxy",
       "regexp": 151,
       "sources": 3,
-      "suffix": 26539
+      "suffix": 26541
     },
     "domain/samsung": {
       "attr_skipped": 0,
@@ -563,14 +563,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 88,
+      "count": 89,
       "exact": 0,
-      "junk_dropped": 14,
+      "junk_dropped": 15,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 102
+      "suffix": 104
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3914,
+      "count": 3926,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279113
+  "total": 279132
 }
