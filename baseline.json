@@ -1,7 +1,7 @@
 {
   "categories": {
     "domain/ads": {
-      "attr_skipped": 9265,
+      "attr_skipped": 9266,
       "behavior": "domain",
       "classical": 1,
       "count": 904,
@@ -43,14 +43,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 102695,
+      "count": 101871,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
       "name": "anti-ad",
       "regexp": 0,
       "sources": 1,
-      "suffix": 102695
+      "suffix": 101871
     },
     "domain/apple": {
       "attr_skipped": 0,
@@ -118,30 +118,30 @@
       "suffix": 67
     },
     "domain/cn": {
-      "attr_skipped": 488,
+      "attr_skipped": 494,
       "behavior": "domain",
       "classical": 12,
-      "count": 110428,
+      "count": 110431,
       "exact": 11,
       "junk_dropped": 65,
       "keyword": 9,
       "name": "cn",
       "regexp": 3,
       "sources": 5,
-      "suffix": 110482
+      "suffix": 110485
     },
     "domain/cn-lite": {
-      "attr_skipped": 488,
+      "attr_skipped": 494,
       "behavior": "domain",
       "classical": 3,
-      "count": 6266,
+      "count": 6274,
       "exact": 13,
       "junk_dropped": 3,
       "keyword": 0,
       "name": "cn-lite",
       "regexp": 3,
       "sources": 3,
-      "suffix": 6256
+      "suffix": 6264
     },
     "domain/discord": {
       "attr_skipped": 0,
@@ -212,27 +212,27 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 7,
-      "count": 938,
+      "count": 939,
       "exact": 62,
       "junk_dropped": 0,
       "keyword": 4,
       "name": "games",
       "regexp": 3,
       "sources": 3,
-      "suffix": 876
+      "suffix": 877
     },
     "domain/games-cn": {
-      "attr_skipped": 9,
+      "attr_skipped": 15,
       "behavior": "domain",
       "classical": 1,
-      "count": 418,
+      "count": 430,
       "exact": 87,
       "junk_dropped": 0,
       "keyword": 0,
       "name": "games-cn",
       "regexp": 1,
       "sources": 5,
-      "suffix": 331
+      "suffix": 343
     },
     "domain/gfw": {
       "attr_skipped": 0,
@@ -446,14 +446,14 @@
       "attr_skipped": 1658,
       "behavior": "domain",
       "classical": 151,
-      "count": 24239,
+      "count": 24241,
       "exact": 95,
       "junk_dropped": 2397,
       "keyword": 0,
       "name": "proxy",
       "regexp": 151,
       "sources": 3,
-      "suffix": 26541
+      "suffix": 26543
     },
     "domain/samsung": {
       "attr_skipped": 0,
@@ -563,14 +563,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 89,
+      "count": 86,
       "exact": 0,
       "junk_dropped": 15,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 104
+      "suffix": 101
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -628,7 +628,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 12755,
+      "count": 12763,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3926,
+      "count": 3944,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279132
+  "total": 278357
 }
