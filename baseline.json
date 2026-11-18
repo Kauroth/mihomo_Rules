@@ -1,7 +1,7 @@
 {
   "categories": {
     "domain/ads": {
-      "attr_skipped": 9266,
+      "attr_skipped": 9265,
       "behavior": "domain",
       "classical": 1,
       "count": 904,
@@ -17,14 +17,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 2,
-      "count": 231,
+      "count": 232,
       "exact": 34,
       "junk_dropped": 0,
       "keyword": 1,
       "name": "ai",
       "regexp": 1,
       "sources": 2,
-      "suffix": 197
+      "suffix": 198
     },
     "domain/anthropic": {
       "attr_skipped": 0,
@@ -563,14 +563,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 86,
+      "count": 85,
       "exact": 0,
       "junk_dropped": 15,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 101
+      "suffix": 100
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -628,7 +628,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 12763,
+      "count": 12758,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -641,7 +641,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 560,
+      "count": 553,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -680,7 +680,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 1101,
+      "count": 1105,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3944,
+      "count": 3946,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 278357
+  "total": 278351
 }
