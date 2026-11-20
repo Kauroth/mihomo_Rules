@@ -43,14 +43,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 101871,
+      "count": 102780,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
       "name": "anti-ad",
       "regexp": 0,
       "sources": 1,
-      "suffix": 101871
+      "suffix": 102780
     },
     "domain/apple": {
       "attr_skipped": 0,
@@ -563,14 +563,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 91,
+      "count": 92,
       "exact": 0,
       "junk_dropped": 15,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 106
+      "suffix": 107
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -628,7 +628,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 12759,
+      "count": 12763,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -680,7 +680,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 1105,
+      "count": 1104,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3952,
+      "count": 3951,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 278394
+  "total": 279306
 }
