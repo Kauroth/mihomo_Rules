@@ -1,0 +1,2 @@
+# classical：装 domain 规则集装不下的东西（keyword / regexp / 进程）
+DOMAIN-REGEX,^hses[1-7]?\.akamaized\.net$

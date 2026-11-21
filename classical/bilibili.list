@@ -1,0 +1,7 @@
+# classical：装 domain 规则集装不下的东西（keyword / regexp / 进程）
+PROCESS-NAME,com.bilibili.app.blue
+PROCESS-NAME,com.bilibili.app.in
+PROCESS-NAME,com.bilibili.comic
+PROCESS-NAME,com.bilibili.comic.intl
+PROCESS-NAME,tv.danmaku.bili
+PROCESS-NAME,tv.danmaku.bilibilihd

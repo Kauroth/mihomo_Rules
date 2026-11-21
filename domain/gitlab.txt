@@ -1,0 +1,6 @@
+# 由 scripts/fetch-sources.py 从 sources/domain/gitlab.src 生成 —— 不要手改
++.gitlab-static.net
++.gitlab.com
++.gitlab.io
++.gitlab.net
+gitlab-assets.oss-cn-hongkong.aliyuncs.com
