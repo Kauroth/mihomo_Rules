@@ -43,14 +43,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 102780,
+      "count": 103348,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
       "name": "anti-ad",
       "regexp": 0,
       "sources": 1,
-      "suffix": 102780
+      "suffix": 103348
     },
     "domain/apple": {
       "attr_skipped": 0,
@@ -134,14 +134,14 @@
       "attr_skipped": 494,
       "behavior": "domain",
       "classical": 3,
-      "count": 6299,
+      "count": 6300,
       "exact": 13,
       "junk_dropped": 3,
       "keyword": 0,
       "name": "cn-lite",
       "regexp": 3,
       "sources": 3,
-      "suffix": 6289
+      "suffix": 6290
     },
     "domain/discord": {
       "attr_skipped": 0,
@@ -563,14 +563,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 96,
+      "count": 101,
       "exact": 0,
       "junk_dropped": 14,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 110
+      "suffix": 115
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -628,7 +628,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 12757,
+      "count": 12763,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279130
+  "total": 279710
 }
