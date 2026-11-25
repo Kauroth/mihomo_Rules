@@ -1,7 +1,7 @@
 {
   "categories": {
     "domain/ads": {
-      "attr_skipped": 9139,
+      "attr_skipped": 9140,
       "behavior": "domain",
       "classical": 1,
       "count": 905,
@@ -446,14 +446,14 @@
       "attr_skipped": 1658,
       "behavior": "domain",
       "classical": 151,
-      "count": 24152,
-      "exact": 95,
+      "count": 24157,
+      "exact": 96,
       "junk_dropped": 2399,
       "keyword": 0,
       "name": "proxy",
       "regexp": 151,
       "sources": 3,
-      "suffix": 26456
+      "suffix": 26460
     },
     "domain/samsung": {
       "attr_skipped": 0,
@@ -563,14 +563,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 101,
+      "count": 96,
       "exact": 0,
       "junk_dropped": 15,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 116
+      "suffix": 111
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -628,7 +628,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 12797,
+      "count": 12781,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -680,7 +680,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 1104,
+      "count": 1102,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3959,
+      "count": 3965,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279757
+  "total": 279745
 }
