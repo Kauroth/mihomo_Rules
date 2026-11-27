@@ -1,7 +1,7 @@
 {
   "categories": {
     "domain/ads": {
-      "attr_skipped": 9146,
+      "attr_skipped": 9147,
       "behavior": "domain",
       "classical": 1,
       "count": 905,
@@ -342,8 +342,8 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 640,
-      "exact": 16,
+      "count": 641,
+      "exact": 17,
       "junk_dropped": 0,
       "keyword": 0,
       "name": "microsoft",
@@ -352,7 +352,7 @@
       "suffix": 624
     },
     "domain/microsoft-cn": {
-      "attr_skipped": 577,
+      "attr_skipped": 578,
       "behavior": "domain",
       "classical": 0,
       "count": 189,
@@ -446,8 +446,8 @@
       "attr_skipped": 1658,
       "behavior": "domain",
       "classical": 151,
-      "count": 24168,
-      "exact": 96,
+      "count": 24169,
+      "exact": 97,
       "junk_dropped": 2399,
       "keyword": 0,
       "name": "proxy",
@@ -565,12 +565,12 @@
       "classical": 0,
       "count": 97,
       "exact": 0,
-      "junk_dropped": 15,
+      "junk_dropped": 16,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 112
+      "suffix": 113
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -628,7 +628,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 12783,
+      "count": 12774,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -641,7 +641,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 557,
+      "count": 553,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3971,
+      "count": 3979,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279055
+  "total": 279052
 }
