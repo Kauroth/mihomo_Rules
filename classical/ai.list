@@ -1,0 +1,3 @@
+# classical：装 domain 规则集装不下的东西（keyword / regexp / 进程）
+DOMAIN-KEYWORD,openai
+DOMAIN-REGEX,^chatgpt-async-webps-prod-\S+-\d+\.webpubsub\.azure\.com$

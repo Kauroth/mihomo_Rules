@@ -1,0 +1,31 @@
+# fake-ip 例外名单（behavior: domain）
+# 这些域名必须拿真实 IP，否则会出问题：UDP 123 走代理必失败、局域网设备发现失效、P2P 拿不到对端。
+# 写法约定：+.domain = 含自身及所有子域（等价 DOMAIN-SUFFIX）
+
+# ---------- NTP / 时间同步 ----------
++.time.windows.com
++.time.apple.com
++.ntp.aliyun.com
++.time1.cloud.tencent.com
++.cn.pool.ntp.org
+
+# ---------- Windows 联网探测 ----------
++.msftconnecttest.com
++.msftncsi.com
+
+# ---------- 局域网 / 私有域名 ----------
++.lan
++.local
++.localdomain
++.home.arpa
+
+# ---------- STUN ----------
++.stun.playstation.net
++.stun.l.google.com
+
+# ---------- BT / PT：P2P 需要真实地址 ----------
++.bittorrent.com
++.utorrent.com
++.transmissionbt.com
+# 你自己的 PT 站，按需打开
+# +.your-pt-site.com

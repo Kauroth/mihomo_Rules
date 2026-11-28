@@ -1,0 +1,2 @@
+# 由 scripts/fetch-sources.py 从 sources/domain/applications.src 生成 —— 不要手改
++.qbittorrent.org

@@ -1,0 +1,13 @@
+# classical：装 domain 规则集装不下的东西（keyword / regexp / 进程）
+DOMAIN-KEYWORD,.tmall.com
+DOMAIN-KEYWORD,alicdn
+DOMAIN-KEYWORD,alipay
+DOMAIN-KEYWORD,aliyun
+DOMAIN-KEYWORD,baidu
+DOMAIN-KEYWORD,beplay
+DOMAIN-KEYWORD,microsoft
+DOMAIN-KEYWORD,officecdn
+DOMAIN-KEYWORD,taobao
+DOMAIN-REGEX,.+\.awsdns-cn-[0-9][0-9]\.(biz|com|net|top)$
+DOMAIN-REGEX,.+\.awsdns-cn-[0-9][a-e0-9]\.cn$
+DOMAIN-REGEX,^.+-mihayo\.akamaized\.net$
