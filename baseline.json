@@ -212,14 +212,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 7,
-      "count": 939,
+      "count": 940,
       "exact": 62,
       "junk_dropped": 0,
       "keyword": 4,
       "name": "games",
       "regexp": 3,
       "sources": 3,
-      "suffix": 877
+      "suffix": 878
     },
     "domain/games-cn": {
       "attr_skipped": 15,
@@ -238,14 +238,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 4365,
+      "count": 4368,
       "exact": 0,
       "junk_dropped": 97,
       "keyword": 0,
       "name": "gfw",
       "regexp": 0,
       "sources": 2,
-      "suffix": 4462
+      "suffix": 4465
     },
     "domain/github": {
       "attr_skipped": 0,
@@ -446,14 +446,14 @@
       "attr_skipped": 1658,
       "behavior": "domain",
       "classical": 151,
-      "count": 24169,
+      "count": 24173,
       "exact": 97,
       "junk_dropped": 2399,
       "keyword": 0,
       "name": "proxy",
       "regexp": 151,
       "sources": 3,
-      "suffix": 26471
+      "suffix": 26475
     },
     "domain/samsung": {
       "attr_skipped": 0,
@@ -563,14 +563,14 @@
       "attr_skipped": 0,
       "behavior": "domain",
       "classical": 0,
-      "count": 97,
+      "count": 96,
       "exact": 0,
       "junk_dropped": 16,
       "keyword": 0,
       "name": "trackerslist",
       "regexp": 0,
       "sources": 3,
-      "suffix": 113
+      "suffix": 112
     },
     "domain/twitter": {
       "attr_skipped": 0,
@@ -628,7 +628,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 12774,
+      "count": 12773,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -693,7 +693,7 @@
       "attr_skipped": 0,
       "behavior": "ipcidr",
       "classical": 0,
-      "count": 3979,
+      "count": 3982,
       "exact": 0,
       "junk_dropped": 0,
       "keyword": 0,
@@ -729,5 +729,5 @@
       "suffix": 0
     }
   },
-  "total": 279052
+  "total": 279061
 }
